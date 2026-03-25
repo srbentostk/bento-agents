@@ -17,34 +17,14 @@ export function startFileWatching(
   permissionTimers: Map<number, ReturnType<typeof setTimeout>>,
   webview: vscode.Webview | undefined,
 ): void {
-  // Primary: fs.watch (unreliable on macOS — may miss events)
-  try {
-    const watcher = fs.watch(filePath, () => {
-      readNewLines(agentId, agents, waitingTimers, permissionTimers, webview);
-    });
-    fileWatchers.set(agentId, watcher);
-  } catch (e) {
-    console.log(`[Pixel Agents] fs.watch failed for agent ${agentId}: ${e}`);
-  }
-
-  // Secondary: fs.watchFile (stat-based polling, reliable on macOS)
-  try {
-    fs.watchFile(filePath, { interval: FILE_WATCHER_POLL_INTERVAL_MS }, () => {
-      readNewLines(agentId, agents, waitingTimers, permissionTimers, webview);
-    });
-  } catch (e) {
-    console.log(`[Pixel Agents] fs.watchFile failed for agent ${agentId}: ${e}`);
-  }
-
-  // Tertiary: manual poll as last resort
+  // Single polling approach: reliable on all platforms (macOS, Linux, WSL2, Windows).
+  // Previously used triple-redundant fs.watch + fs.watchFile + setInterval, but
+  // fs.watch is unreliable on macOS/WSL2 and the redundancy created 3 timers per
+  // agent doing synchronous I/O. The manual poll at 500ms is fast enough for a
+  // pixel art visualization and works everywhere.
   const interval = setInterval(() => {
     if (!agents.has(agentId)) {
       clearInterval(interval);
-      try {
-        fs.unwatchFile(filePath);
-      } catch {
-        /* ignore */
-      }
       return;
     }
     readNewLines(agentId, agents, waitingTimers, permissionTimers, webview);
@@ -65,11 +45,15 @@ export function readNewLines(
     const stat = fs.statSync(agent.jsonlFile);
     if (stat.size <= agent.fileOffset) return;
 
-    const buf = Buffer.alloc(stat.size - agent.fileOffset);
+    // Cap single read at 64KB to prevent blocking on massive JSONL dumps.
+    // Remaining data will be picked up on the next poll cycle.
+    const MAX_READ_BYTES = 65536;
+    const bytesToRead = Math.min(stat.size - agent.fileOffset, MAX_READ_BYTES);
+    const buf = Buffer.alloc(bytesToRead);
     const fd = fs.openSync(agent.jsonlFile, 'r');
     fs.readSync(fd, buf, 0, buf.length, agent.fileOffset);
     fs.closeSync(fd);
-    agent.fileOffset = stat.size;
+    agent.fileOffset += bytesToRead;
 
     const text = agent.lineBuffer + buf.toString('utf-8');
     const lines = text.split('\n');
@@ -209,8 +193,32 @@ function scanForNewJsonlFiles(
               persistAgents,
             );
           }
+        } else {
+          console.log(
+            `[Pixel Agents] New JSONL detected but no active agent or terminal to adopt: ${path.basename(file)}`,
+          );
         }
       }
+    }
+  }
+
+  // Clean up orphaned agents whose terminals have been closed
+  for (const [id, agent] of agents) {
+    if (agent.terminalRef.exitStatus !== undefined) {
+      console.log(`[Pixel Agents] Agent ${id}: terminal closed, cleaning up orphan`);
+      // Stop file watching
+      fileWatchers.get(id)?.close();
+      fileWatchers.delete(id);
+      const pt = pollingTimers.get(id);
+      if (pt) {
+        clearInterval(pt);
+      }
+      pollingTimers.delete(id);
+      cancelWaitingTimer(id, waitingTimers);
+      cancelPermissionTimer(id, permissionTimers);
+      agents.delete(id);
+      persistAgents();
+      webview?.postMessage({ type: 'agentClosed', id });
     }
   }
 }
@@ -246,6 +254,9 @@ function adoptTerminalForFile(
     isWaiting: false,
     permissionSent: false,
     hadToolsInTurn: false,
+    lastDataAt: 0,
+    linesProcessed: 0,
+    seenUnknownRecordTypes: new Set(),
   };
 
   agents.set(id, agent);
@@ -292,11 +303,6 @@ export function reassignAgentToFile(
     clearInterval(pt);
   }
   pollingTimers.delete(agentId);
-  try {
-    fs.unwatchFile(agent.jsonlFile);
-  } catch {
-    /* ignore */
-  }
 
   // Clear activity
   cancelWaitingTimer(agentId, waitingTimers);
