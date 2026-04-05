@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { playDoneSound, playPermissionEscalateSound, playNotification, setSoundEnabled } from '../notificationSound.js';
-import type { OfficeState } from '../office/engine/officeState.js';
-import { IDLE_EXIT_TIMEOUT_SEC, SERVER_IDLE_REMOVE_SEC } from '../constants.js';
 import type { ServerInfo } from '../components/ServerPanel.js';
+import { IDLE_EXIT_TIMEOUT_SEC, SERVER_IDLE_REMOVE_SEC } from '../constants.js';
+import { playDoneSound, playNotification, playPermissionEscalateSound, setSoundEnabled } from '../notificationSound.js';
+import type { OfficeState } from '../office/engine/officeState.js';
 import { setFloorSprites } from '../office/floorTiles.js';
 import { buildDynamicCatalog } from '../office/layout/furnitureCatalog.js';
 import { migrateLayoutColors } from '../office/layout/layoutSerializer.js';

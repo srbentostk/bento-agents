@@ -14,6 +14,7 @@ import {
   STRIKE_BUBBLE_DURATION_SEC,
   WAITING_BUBBLE_DURATION_SEC,
 } from '../../constants.js';
+import * as AudioManager from '../audio/audioManager.js';
 import { getAnimationFrames, getCatalogEntry, getOnStateType } from '../layout/furnitureCatalog.js';
 import {
   createDefaultLayout,
@@ -32,7 +33,6 @@ import type {
   TileType as TileTypeVal,
 } from '../types.js';
 import { CharacterState, Direction, MATRIX_EFFECT_DURATION, TILE_SIZE } from '../types.js';
-import * as AudioManager from '../audio/audioManager.js';
 import {
   createCharacter,
   setExitReachedCallback,
