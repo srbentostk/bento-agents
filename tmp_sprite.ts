@@ -27,19 +27,19 @@ export const BUBBLE_STRIKE_SPRITE: SpriteData = resolveBubbleSprite(bubbleStatus
 
 // ════════════════════════════════════════════════════════════════
 // Loaded character sprites (from PNG assets)
-// ════════════════════════════════════════════════════════════════
-
-export interface LoadedCharacterData {
-  down: SpriteData[];
-  up: SpriteData[];
-  right: SpriteData[];
-}
-
-let loadedCharacters: LoadedCharacterData[] | null = null;
+// ═════�/** Set pre-colored character sprites loaded from PNG assets. Call this when characterSpritesLoaded message arrives. */
+export function setCharacterTemplates(data: LoadedCharacterData[]): void {
+  loadedCharacters = data;
+}}
 
 /** Set pre-colored character sprites loaded from PNG assets. Call this when characterSpritesLoaded message arrives. */
 export function setCharacterTemplates(data: LoadedCharacterData[]): void {
-  loadedCharacters = data;
+  // Apply suit + tie to all frames before storing
+  loadedCharacters = data.map((char) => ({
+    down: char.down.map(applySuitToFrame),
+    up: char.up.map(applySuitToFrame),
+    right: char.right.map(applySuitToFrame),
+  }));
   // Clear cache so sprites are rebuilt from loaded data
   spriteCache.clear();
 }
@@ -57,9 +57,6 @@ export interface CharacterSprites {
   walk: Record<Direction, [SpriteData, SpriteData, SpriteData, SpriteData]>;
   typing: Record<Direction, [SpriteData, SpriteData]>;
   reading: Record<Direction, [SpriteData, SpriteData]>;
-  sitCouch: Record<Direction, SpriteData>;
-  sitFloor: Record<Direction, SpriteData>;
-  dance: Record<Direction, SpriteData>;
 }
 
 const spriteCache = new Map<string, CharacterSprites>();
@@ -99,24 +96,6 @@ function hueShiftSprites(sprites: CharacterSprites, hueShift: number): Character
       [Dir.RIGHT]: shiftPair(sprites.reading[Dir.RIGHT]),
       [Dir.LEFT]: shiftPair(sprites.reading[Dir.LEFT]),
     } as Record<Direction, [SpriteData, SpriteData]>,
-    sitCouch: {
-      [Dir.DOWN]: shift(sprites.sitCouch[Dir.DOWN]),
-      [Dir.UP]: shift(sprites.sitCouch[Dir.UP]),
-      [Dir.RIGHT]: shift(sprites.sitCouch[Dir.RIGHT]),
-      [Dir.LEFT]: shift(sprites.sitCouch[Dir.LEFT]),
-    } as Record<Direction, SpriteData>,
-    sitFloor: {
-      [Dir.DOWN]: shift(sprites.sitFloor[Dir.DOWN]),
-      [Dir.UP]: shift(sprites.sitFloor[Dir.UP]),
-      [Dir.RIGHT]: shift(sprites.sitFloor[Dir.RIGHT]),
-      [Dir.LEFT]: shift(sprites.sitFloor[Dir.LEFT]),
-    } as Record<Direction, SpriteData>,
-    dance: {
-      [Dir.DOWN]: shift(sprites.dance[Dir.DOWN]),
-      [Dir.UP]: shift(sprites.dance[Dir.UP]),
-      [Dir.RIGHT]: shift(sprites.dance[Dir.RIGHT]),
-      [Dir.LEFT]: shift(sprites.dance[Dir.LEFT]),
-    } as Record<Direction, SpriteData>,
   };
 }
 
@@ -137,6 +116,7 @@ export function getCharacterSprites(paletteIndex: number, hueShift = 0): Charact
   let sprites: CharacterSprites;
 
   if (loadedCharacters) {
+    // Use pre-colored character sprites directly (no palette swapping)
     const char = loadedCharacters[paletteIndex % loadedCharacters.length];
     const d = char.down;
     const u = char.up;
@@ -144,24 +124,6 @@ export function getCharacterSprites(paletteIndex: number, hueShift = 0): Charact
     const flip = flipSpriteHorizontal;
 
     sprites = {
-      sitCouch: {
-        [Dir.DOWN]: d[7],
-        [Dir.UP]: u[7],
-        [Dir.RIGHT]: rt[7],
-        [Dir.LEFT]: flip(rt[7]),
-      },
-      sitFloor: {
-        [Dir.DOWN]: d[8],
-        [Dir.UP]: u[8],
-        [Dir.RIGHT]: rt[8],
-        [Dir.LEFT]: flip(rt[8]),
-      },
-      dance: {
-        [Dir.DOWN]: d[9],
-        [Dir.UP]: u[9],
-        [Dir.RIGHT]: rt[9],
-        [Dir.LEFT]: flip(rt[9]),
-      },
       walk: {
         [Dir.DOWN]: [d[0], d[1], d[2], d[1]],
         [Dir.UP]: [u[0], u[1], u[2], u[1]],
@@ -182,7 +144,8 @@ export function getCharacterSprites(paletteIndex: number, hueShift = 0): Charact
       },
     };
   } else {
-    const e = emptySprite(24, 32);
+    // Fallback: return transparent placeholder sprites (16×32)
+    const e = emptySprite(16, 32);
     const walkSet: [SpriteData, SpriteData, SpriteData, SpriteData] = [e, e, e, e];
     const pairSet: [SpriteData, SpriteData] = [e, e];
     sprites = {
@@ -204,12 +167,10 @@ export function getCharacterSprites(paletteIndex: number, hueShift = 0): Charact
         [Dir.RIGHT]: pairSet,
         [Dir.LEFT]: pairSet,
       },
-      sitCouch: { [Dir.DOWN]: e, [Dir.UP]: e, [Dir.RIGHT]: e, [Dir.LEFT]: e },
-      sitFloor: { [Dir.DOWN]: e, [Dir.UP]: e, [Dir.RIGHT]: e, [Dir.LEFT]: e },
-      dance: { [Dir.DOWN]: e, [Dir.UP]: e, [Dir.RIGHT]: e, [Dir.LEFT]: e },
     };
   }
 
+  // Apply hue shift if non-zero
   if (hueShift !== 0) {
     sprites = hueShiftSprites(sprites, hueShift);
   }

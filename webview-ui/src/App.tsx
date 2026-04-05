@@ -4,8 +4,11 @@ import { toMajorMinor } from './changelogData.js';
 import { BottomToolbar } from './components/BottomToolbar.js';
 import { ChangelogModal } from './components/ChangelogModal.js';
 import { DebugView } from './components/DebugView.js';
+import { ServerPanel } from './components/ServerPanel.js';
+import { ServerRackOverlay } from './components/ServerRackOverlay.js';
 import { VersionIndicator } from './components/VersionIndicator.js';
 import { ZoomControls } from './components/ZoomControls.js';
+import { JukeboxOverlay } from './components/JukeboxOverlay.js';
 import { PULSE_ANIMATION_DURATION_SEC } from './constants.js';
 import { useEditorActions } from './hooks/useEditorActions.js';
 import { useEditorKeyboard } from './hooks/useEditorKeyboard.js';
@@ -156,6 +159,9 @@ function App() {
     watchAllSessions,
     setWatchAllSessions,
     alwaysShowLabels,
+    servers,
+    updateAvailable,
+    acceptPermission,
   } = useExtensionMessages(getOfficeState, editor.setLastSavedLayout, isEditDirty);
 
   // Show migration notice once layout reset is detected
@@ -165,6 +171,52 @@ function App() {
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
   const [isDebugMode, setIsDebugMode] = useState(false);
   const [alwaysShowOverlay, setAlwaysShowOverlay] = useState(false);
+  const [isServerPanelOpen, setIsServerPanelOpen] = useState(false);
+  const [isJukeboxOpen, setIsJukeboxOpen] = useState(false);
+  const [isPipActive, setIsPipActive] = useState(false);
+  const [isLargerLayout, setIsLargerLayout] = useState(true);
+  const pipVideoRef = useRef<HTMLVideoElement | null>(null);
+
+  const handleTogglePip = useCallback(async () => {
+    try {
+      if (document.pictureInPictureElement) {
+        await document.exitPictureInPicture();
+        setIsPipActive(false);
+        return;
+      }
+
+      const canvas = document.querySelector('canvas');
+      if (!canvas) {
+        console.error('Canvas not found for PIP');
+        return;
+      }
+
+      if (!pipVideoRef.current) {
+        const video = document.createElement('video');
+        video.muted = true;
+        // @ts-ignore
+        video.srcObject = canvas.captureStream(30); 
+        await video.play();
+        pipVideoRef.current = video;
+      }
+
+      // @ts-ignore
+      await pipVideoRef.current.requestPictureInPicture();
+      setIsPipActive(true);
+      pipVideoRef.current.addEventListener('leavepictureinpicture', () => {
+        setIsPipActive(false);
+      }, { once: true });
+    } catch (err) {
+      console.error('Failed to enter PIP:', err);
+    }
+  }, []);
+
+  const handleFocusAgent = useCallback((id: number) => {
+    const os = getOfficeState();
+    const meta = os.subagentMeta.get(id);
+    const focusId = meta ? meta.parentAgentId : id;
+    vscode.postMessage({ type: 'focusAgent', id: focusId });
+  }, []);
 
   const currentMajorMinor = toMajorMinor(extensionVersion);
 
@@ -266,46 +318,257 @@ function App() {
   return (
     <div
       ref={containerRef}
-      style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}
+      style={{ 
+        width: '100%', 
+        height: '100%', 
+        position: 'relative', 
+        overflow: 'hidden',
+        background: 'var(--pixel-bg)'
+      }}
     >
       <style>{`
-        @keyframes pixel-agents-pulse {
+        @keyframes bento-agents-pulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.3; }
         }
-        .pixel-agents-pulse { animation: pixel-agents-pulse ${PULSE_ANIMATION_DURATION_SEC}s ease-in-out infinite; }
-        .pixel-agents-migration-btn:hover { filter: brightness(0.8); }
+        .bento-agents-pulse { animation: bento-agents-pulse ${PULSE_ANIMATION_DURATION_SEC}s ease-in-out infinite; }
+        .bento-agents-migration-btn:hover { filter: brightness(0.8); }
+
+        @keyframes strike-shake {
+          0% { transform: translate(0, 0); }
+          25% { transform: translate(-2px, 2px); }
+          50% { transform: translate(2px, -2px); }
+          75% { transform: translate(-2px, -2px); }
+          100% { transform: translate(2px, 2px); }
+        }
+        .strike-shake { animation: strike-shake 0.1s infinite; }
       `}</style>
 
-      <OfficeCanvas
-        officeState={officeState}
-        onClick={handleClick}
-        isEditMode={editor.isEditMode}
-        editorState={editorState}
-        onEditorTileAction={editor.handleEditorTileAction}
-        onEditorEraseAction={editor.handleEditorEraseAction}
-        onEditorSelectionChange={editor.handleEditorSelectionChange}
-        onDeleteSelected={editor.handleDeleteSelected}
-        onRotateSelected={editor.handleRotateSelected}
-        onDragMove={editor.handleDragMove}
-        editorTick={editor.editorTick}
-        zoom={editor.zoom}
-        onZoomChange={editor.handleZoomChange}
-        panRef={editor.panRef}
-      />
+      <div
+        className={isLargerLayout ? 'pixel-hd' : ''}
+        style={{
+          width: '100%',
+          height: '100%',
+          transform: isLargerLayout ? 'scale(1.1)' : 'none',
+          transformOrigin: 'center center',
+          transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
+      >
+        <OfficeCanvas
+          officeState={officeState}
+          onClick={handleClick}
+          isEditMode={editor.isEditMode}
+          editorState={editorState}
+          onEditorTileAction={editor.handleEditorTileAction}
+          onEditorEraseAction={editor.handleEditorEraseAction}
+          onEditorSelectionChange={editor.handleEditorSelectionChange}
+          onDeleteSelected={editor.handleDeleteSelected}
+          onRotateSelected={editor.handleRotateSelected}
+          onDragMove={editor.handleDragMove}
+          editorTick={editor.editorTick}
+          zoom={editor.zoom}
+          onZoomChange={editor.handleZoomChange}
+          panRef={editor.panRef}
+          onFocusAgent={handleFocusAgent}
+        />
+      </div>
 
       {!isDebugMode && <ZoomControls zoom={editor.zoom} onZoomChange={editor.handleZoomChange} />}
+
+      {/* Servidores renderizados no ambiente como racks */}
+      {!isDebugMode && servers.length > 0 && (
+        <ServerRackOverlay
+          servers={servers}
+          containerRef={containerRef}
+          zoom={editor.zoom}
+          panRef={editor.panRef}
+          layoutCols={officeState.getLayout().cols}
+          layoutRows={officeState.getLayout().rows}
+        />
+      )}
+
+      {/* Botão de gerenciamento de servidores (painel flutuante) */}
+      {!isDebugMode && (
+        <button
+          onClick={() => setIsServerPanelOpen((v) => !v)}
+          title="Gerenciar Servidores"
+          style={{
+            position: 'absolute',
+            bottom: 56,
+            left: 8,
+            zIndex: 55,
+            background: isServerPanelOpen ? 'var(--pixel-accent)' : 'var(--pixel-btn-bg)',
+            border: '2px solid var(--pixel-accent)',
+            color: isServerPanelOpen ? '#000' : 'var(--pixel-accent)',
+            cursor: 'pointer',
+            fontSize: '22px',
+            padding: '6px 12px',
+            borderRadius: 0,
+            fontFamily: 'FS Pixel Sans',
+            fontWeight: 'bold',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            height: '38px',
+          }}
+        >
+          🖥️
+          {servers.filter((s) => s.status === 'running').length > 0 && (
+            <span
+              style={{
+                background: '#2ecc71',
+                color: '#000',
+                borderRadius: '50%',
+                width: 14,
+                height: 14,
+                fontSize: '9px',
+                fontWeight: 'bold',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              {servers.filter((s) => s.status === 'running').length}
+            </span>
+          )}
+        </button>
+      )}
+
+      {/* Painel de gerenciamento de servidores */}
+      {!isDebugMode && isServerPanelOpen && (
+        <ServerPanel servers={servers} onClose={() => setIsServerPanelOpen(false)} />
+      )}
+
+      {/* Botão de atualização — aparece quando há nova versão disponível */}
+      {!isDebugMode && updateAvailable && (
+        <button
+          onClick={() => vscode.postMessage({ type: 'installUpdate' })}
+          title={`Nova versão disponível: ${updateAvailable} — clique para atualizar`}
+          className="bento-agents-pulse"
+          style={{
+            position: 'absolute',
+            bottom: 56,
+            left: 48,
+            zIndex: 55,
+            background: 'var(--pixel-accent)',
+            border: '2px solid #fff',
+            color: '#000',
+            cursor: 'pointer',
+            fontSize: '22px',
+            padding: '6px 12px',
+            borderRadius: 0,
+            fontFamily: 'FS Pixel Sans',
+            fontWeight: 'bold',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            height: '38px',
+          }}
+        >
+          ↑ {updateAvailable}
+        </button>
+      )}
+
+      {/* Botão de verificar atualizações (quando não há update pendente) */}
+      {!isDebugMode && !updateAvailable && (
+        <button
+          onClick={() => vscode.postMessage({ type: 'checkForUpdates' })}
+          title="Verificar atualizações"
+          style={{
+            position: 'absolute',
+            bottom: 56,
+            left: 48,
+            zIndex: 55,
+            background: 'var(--pixel-btn-bg)',
+            border: '2px solid var(--pixel-border)',
+            color: 'var(--pixel-accent)',
+            cursor: 'pointer',
+            fontSize: '22px',
+            padding: '6px 12px',
+            borderRadius: 0,
+            fontFamily: 'FS Pixel Sans',
+            height: '38px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          ↑
+        </button>
+      )}
+
+      {/* Jukebox Button */}
+      {!isDebugMode && (
+        <button
+          onClick={() => setIsJukeboxOpen((v) => !v)}
+          title="Abrir Jukebox"
+          style={{
+            position: 'absolute',
+            bottom: 56,
+            left: 88,
+            zIndex: 55,
+            background: isJukeboxOpen ? 'var(--pixel-accent)' : 'var(--pixel-btn-bg)',
+            border: '2px solid var(--pixel-accent)',
+            color: isJukeboxOpen ? '#000' : 'var(--pixel-accent)',
+            cursor: 'pointer',
+            fontSize: '22px',
+            padding: '6px 12px',
+            borderRadius: 0,
+            height: '38px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          📻
+        </button>
+      )}
+
+      {/* Jukebox Modal */}
+      {isJukeboxOpen && (
+        <JukeboxOverlay 
+          officeState={officeState} 
+          onClose={() => setIsJukeboxOpen(false)} 
+        />
+      )}
 
       {/* Vignette overlay */}
       <div
         style={{
           position: 'absolute',
           inset: 0,
-          background: 'var(--pixel-vignette)',
+          background: officeState.isGlobalStriking ? 'radial-gradient(circle, transparent 20%, rgba(200, 0, 0, 0.4) 100%)' : 'var(--pixel-vignette)',
           pointerEvents: 'none',
           zIndex: 40,
+          border: officeState.isGlobalStriking ? '4px solid rgba(255, 0, 0, 0.5)' : 'none',
+          transition: 'all 0.3s ease',
         }}
+        className={officeState.isGlobalStriking ? 'strike-shake' : ''}
       />
+
+      {officeState.isGlobalStriking && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '20%',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 100,
+            background: 'var(--pixel-bg)',
+            border: '4px solid #ff0000',
+            color: '#ff0000',
+            padding: '12px 24px',
+            fontFamily: 'monospace',
+            fontWeight: 'bold',
+            fontSize: '24px',
+            textAlign: 'center',
+            boxShadow: '0 0 20px rgba(255, 0, 0, 0.5)',
+          }}
+        >
+          STRIKE DETECTED<br/>
+          <span style={{ fontSize: '14px', color: 'var(--pixel-text-dim)' }}>RATE LIMIT EXCEEDED</span>
+        </div>
+      )}
 
       <BottomToolbar
         isEditMode={editor.isEditMode}
@@ -323,6 +586,10 @@ function App() {
           setWatchAllSessions(newVal);
           vscode.postMessage({ type: 'setWatchAllSessions', enabled: newVal });
         }}
+        onTogglePip={handleTogglePip}
+        isPipActive={isPipActive}
+        isLargerLayout={isLargerLayout}
+        onToggleLargerLayout={() => setIsLargerLayout((v) => !v)}
       />
 
       <VersionIndicator
@@ -405,6 +672,9 @@ function App() {
           panRef={editor.panRef}
           onCloseAgent={handleCloseAgent}
           alwaysShowOverlay={alwaysShowOverlay}
+          onAcceptPermission={acceptPermission}
+          onFocusAgent={handleFocusAgent}
+          onTogglePip={handleTogglePip}
         />
       )}
 
@@ -460,10 +730,10 @@ function App() {
               exciting updates ahead.
             </p>
             <p style={{ fontSize: '26px', color: 'var(--pixel-text-dim)', margin: '0 0 20px 0' }}>
-              Stay tuned, and thanks for using Pixel Agents!
+              Stay tuned, and thanks for using Bento Agents!
             </p>
             <button
-              className="pixel-agents-migration-btn"
+              className="bento-agents-migration-btn"
               style={{
                 padding: '6px 24px 8px',
                 fontSize: '30px',

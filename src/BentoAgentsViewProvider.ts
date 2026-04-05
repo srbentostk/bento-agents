@@ -1,3 +1,4 @@
+import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -43,9 +44,10 @@ import {
 } from './fileWatcher.js';
 import type { LayoutWatcher } from './layoutPersistence.js';
 import { readLayoutFromFile, watchLayoutFile, writeLayoutToFile } from './layoutPersistence.js';
+import { ServerManager } from './serverManager.js';
 import type { AgentState } from './types.js';
 
-export class PixelAgentsViewProvider implements vscode.WebviewViewProvider {
+export class BentoAgentsViewProvider implements vscode.WebviewViewProvider {
   nextAgentId = { current: 1 };
   nextTerminalIndex = { current: 1 };
   agents = new Map<number, AgentState>();
@@ -66,6 +68,7 @@ export class PixelAgentsViewProvider implements vscode.WebviewViewProvider {
   // External session detection (VS Code extension panel, etc.)
   externalScanTimer: ReturnType<typeof setInterval> | null = null;
   staleCheckTimer: ReturnType<typeof setInterval> | null = null;
+  _serverDiscoveryTimer: ReturnType<typeof setInterval> | null = null;
 
   // Global session scanning (opt-in "Watch All Sessions" toggle)
   watchAllSessions = { current: false };
@@ -79,6 +82,9 @@ export class PixelAgentsViewProvider implements vscode.WebviewViewProvider {
 
   // Cross-window layout sync
   layoutWatcher: LayoutWatcher | null = null;
+
+  // Server process manager
+  serverManager = new ServerManager();
 
   constructor(private readonly context: vscode.ExtensionContext) {}
 
@@ -148,9 +154,14 @@ export class PixelAgentsViewProvider implements vscode.WebviewViewProvider {
             webviewView.webview.postMessage({ type: 'agentClosed', id: message.id });
           }
         }
+      } else if (message.type === 'agentInput') {
+        const agent = this.agents.get(message.id);
+        if (agent && agent.terminalRef) {
+          agent.terminalRef.sendText(message.text);
+        }
       } else if (message.type === 'saveAgentSeats') {
         // Store seat assignments in a separate key (never touched by persistAgents)
-        console.log(`[Pixel Agents] saveAgentSeats:`, JSON.stringify(message.seats));
+        console.log(`[Bento Agents] saveAgentSeats:`, JSON.stringify(message.seats));
         this.context.workspaceState.update(WORKSPACE_KEY_AGENT_SEATS, message.seats);
       } else if (message.type === 'saveLayout') {
         this.layoutWatcher?.markOwnWrite();
@@ -205,6 +216,12 @@ export class PixelAgentsViewProvider implements vscode.WebviewViewProvider {
           }
         }
       } else if (message.type === 'webviewReady') {
+        // Conecta o serverManager ao webview ativo e envia lista existente
+        this.serverManager.setWebview(this.webview);
+        this.webview?.postMessage({ type: 'serverList', servers: this.serverManager.getAll() });
+        // Detecta servidores npm/node já rodando
+        void this.serverManager.discoverRunningServers();
+
         restoreAgents(
           this.context,
           this.nextAgentId,
@@ -302,7 +319,7 @@ export class PixelAgentsViewProvider implements vscode.WebviewViewProvider {
               const folderProjectDir = getProjectDirPath(folder.uri.fsPath);
               if (folderProjectDir && folderProjectDir !== projectDir) {
                 console.log(
-                  `[Pixel Agents] Registering additional project dir: ${folderProjectDir}`,
+                  `[Bento Agents] Registering additional project dir: ${folderProjectDir}`,
                 );
                 ensureProjectScan(
                   folderProjectDir,
@@ -322,6 +339,13 @@ export class PixelAgentsViewProvider implements vscode.WebviewViewProvider {
             }
           }
         }
+        // Scan periodically for new node/npm dev servers
+        if (!this._serverDiscoveryTimer) {
+          this._serverDiscoveryTimer = setInterval(() => {
+            void this.serverManager.discoverRunningServers();
+          }, 15000);
+        }
+
         if (!this.staleCheckTimer) {
           this.staleCheckTimer = startStaleExternalAgentCheck(
             this.agents,
@@ -441,16 +465,16 @@ export class PixelAgentsViewProvider implements vscode.WebviewViewProvider {
       } else if (message.type === 'exportLayout') {
         const layout = readLayoutFromFile();
         if (!layout) {
-          vscode.window.showWarningMessage('Pixel Agents: No saved layout to export.');
+          vscode.window.showWarningMessage('Bento Agents: No saved layout to export.');
           return;
         }
         const uri = await vscode.window.showSaveDialog({
           filters: { 'JSON Files': ['json'] },
-          defaultUri: vscode.Uri.file(path.join(os.homedir(), 'pixel-agents-layout.json')),
+          defaultUri: vscode.Uri.file(path.join(os.homedir(), 'bento-agents-layout.json')),
         });
         if (uri) {
           fs.writeFileSync(uri.fsPath, JSON.stringify(layout, null, 2), 'utf-8');
-          vscode.window.showInformationMessage('Pixel Agents: Layout exported successfully.');
+          vscode.window.showInformationMessage('Bento Agents: Layout exported successfully.');
         }
       } else if (message.type === 'addExternalAssetDirectory') {
         const uris = await vscode.window.showOpenDialog({
@@ -492,16 +516,48 @@ export class PixelAgentsViewProvider implements vscode.WebviewViewProvider {
           const raw = fs.readFileSync(uris[0].fsPath, 'utf-8');
           const imported = JSON.parse(raw) as Record<string, unknown>;
           if (imported.version !== 1 || !Array.isArray(imported.tiles)) {
-            vscode.window.showErrorMessage('Pixel Agents: Invalid layout file.');
+            vscode.window.showErrorMessage('Bento Agents: Invalid layout file.');
             return;
           }
           this.layoutWatcher?.markOwnWrite();
           writeLayoutToFile(imported);
           this.webview?.postMessage({ type: 'layoutLoaded', layout: imported });
-          vscode.window.showInformationMessage('Pixel Agents: Layout imported successfully.');
+          vscode.window.showInformationMessage('Bento Agents: Layout imported successfully.');
         } catch {
-          vscode.window.showErrorMessage('Pixel Agents: Failed to read or parse layout file.');
+          vscode.window.showErrorMessage('Bento Agents: Failed to read or parse layout file.');
         }
+
+        // ── Server management ─────────────────────────────────────
+      } else if (message.type === 'startServer') {
+        const id = crypto.randomUUID();
+        const cwd = (message.cwd as string | undefined) ||
+          vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        this.serverManager.start(
+          id,
+          message.name as string,
+          message.command as string,
+          cwd,
+        );
+      } else if (message.type === 'stopServer') {
+        this.serverManager.stop(message.id as string);
+      } else if (message.type === 'removeServer') {
+        this.serverManager.remove(message.id as string);
+      } else if (message.type === 'requestServerLogs') {
+        this.serverManager.sendLogsSnapshot(message.id as string);
+      } else if (message.type === 'browseServerCwd') {
+        const uris = await vscode.window.showOpenDialog({
+          canSelectFolders: true,
+          canSelectFiles: false,
+          canSelectMany: false,
+          openLabel: 'Selecionar Diretório',
+        });
+        if (uris && uris.length > 0) {
+          this.webview?.postMessage({ type: 'serverCwdSelected', path: uris[0].fsPath });
+        }
+      } else if (message.type === 'checkForUpdates') {
+        void this._checkForUpdates();
+      } else if (message.type === 'installUpdate') {
+        void this._installUpdate();
       }
     });
 
@@ -545,12 +601,12 @@ export class PixelAgentsViewProvider implements vscode.WebviewViewProvider {
   exportDefaultLayout(): void {
     const layout = readLayoutFromFile();
     if (!layout) {
-      vscode.window.showWarningMessage('Pixel Agents: No saved layout found.');
+      vscode.window.showWarningMessage('Bento Agents: No saved layout found.');
       return;
     }
     const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     if (!workspaceRoot) {
-      vscode.window.showErrorMessage('Pixel Agents: No workspace folder found.');
+      vscode.window.showErrorMessage('Bento Agents: No workspace folder found.');
       return;
     }
     const assetsDir = path.join(workspaceRoot, 'webview-ui', 'public', 'assets');
@@ -572,7 +628,7 @@ export class PixelAgentsViewProvider implements vscode.WebviewViewProvider {
     const json = JSON.stringify(layout, null, 2);
     fs.writeFileSync(targetPath, json, 'utf-8');
     vscode.window.showInformationMessage(
-      `Pixel Agents: Default layout exported as revision ${nextRevision} to ${targetPath}`,
+      `Bento Agents: Default layout exported as revision ${nextRevision} to ${targetPath}`,
     );
   }
 
@@ -602,15 +658,78 @@ export class PixelAgentsViewProvider implements vscode.WebviewViewProvider {
     }
   }
 
+  /** Check GitHub releases for a newer version and notify the webview */
+  private async _checkForUpdates(): Promise<void> {
+    const { exec } = await import('child_process');
+    const { promisify } = await import('util');
+    const execAsync = promisify(exec);
+    try {
+      // Fetch latest release from the releases/latest folder tag in git remote
+      const { stdout } = await execAsync(
+        'git ls-remote --tags --sort=-v:refname origin "refs/tags/v*" 2>/dev/null | head -1',
+        { cwd: __dirname },
+      );
+      const match = stdout.match(/refs\/tags\/(v[\d.]+)/);
+      if (!match) {
+        vscode.window.showInformationMessage('Bento Agents: nenhuma atualização encontrada.');
+        return;
+      }
+      const latestTag = match[1];
+      const pkg = JSON.parse(
+        require('fs').readFileSync(require('path').join(__dirname, '..', 'package.json'), 'utf8'),
+      ) as { version: string };
+      const current = `v${pkg.version}`;
+      if (latestTag !== current) {
+        this.webview?.postMessage({ type: 'updateAvailable', version: latestTag });
+        vscode.window.showInformationMessage(
+          `Bento Agents: Nova versão ${latestTag} disponível! (atual: ${current})`,
+          'Atualizar',
+        ).then((choice) => {
+          if (choice === 'Atualizar') void this._installUpdate();
+        });
+      } else {
+        vscode.window.showInformationMessage(`Bento Agents: você está na versão mais recente (${current}).`);
+      }
+    } catch (err) {
+      console.error('[Bento Agents] checkForUpdates error:', err);
+      vscode.window.showWarningMessage('Bento Agents: não foi possível verificar atualizações (sem acesso ao repositório git remoto).');
+    }
+  }
+
+  /** Open the releases folder or the VSIX download instructions */
+  private async _installUpdate(): Promise<void> {
+    const releasesUri = vscode.Uri.joinPath(
+      vscode.Uri.file(require('path').join(__dirname, '..')),
+      'releases',
+      'latest',
+    );
+    const items = ['Abrir pasta releases/latest', 'Ver instruções de atualização'];
+    const choice = await vscode.window.showQuickPick(items, {
+      placeHolder: 'Como deseja atualizar o Bento Agents?',
+    });
+    if (choice === items[0]) {
+      await vscode.commands.executeCommand('revealFileInOS', releasesUri);
+    } else if (choice === items[1]) {
+      await vscode.env.openExternal(
+        vscode.Uri.parse('https://github.com/mechamedebento/bento-agents/releases'),
+      );
+    }
+  }
+
   private startLayoutWatcher(): void {
     if (this.layoutWatcher) return;
     this.layoutWatcher = watchLayoutFile((layout) => {
-      console.log('[Pixel Agents] External layout change — pushing to webview');
+      console.log('[Bento Agents] External layout change — pushing to webview');
       this.webview?.postMessage({ type: 'layoutLoaded', layout });
     });
   }
 
   dispose() {
+    if (this._serverDiscoveryTimer) {
+      clearInterval(this._serverDiscoveryTimer);
+      this._serverDiscoveryTimer = null;
+    }
+    this.serverManager.dispose();
     this.layoutWatcher?.dispose();
     this.layoutWatcher = null;
     for (const id of [...this.agents.keys()]) {

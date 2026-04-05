@@ -16,6 +16,10 @@ interface BottomToolbarProps {
   externalAssetDirectories: string[];
   watchAllSessions: boolean;
   onToggleWatchAllSessions: () => void;
+  onTogglePip: () => void;
+  isPipActive: boolean;
+  isLargerLayout: boolean;
+  onToggleLargerLayout: () => void;
 }
 
 const panelStyle: React.CSSProperties = {
@@ -34,13 +38,18 @@ const panelStyle: React.CSSProperties = {
 };
 
 const btnBase: React.CSSProperties = {
-  padding: '5px 10px',
-  fontSize: '24px',
+  padding: '6px 12px',
+  fontSize: '22px',
   color: 'var(--pixel-text)',
   background: 'var(--pixel-btn-bg)',
-  border: '2px solid transparent',
+  border: '2px solid var(--pixel-border)',
   borderRadius: 0,
   cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '6px',
+  transition: 'all 0.1s ease',
+  height: '38px',
 };
 
 const btnActive: React.CSSProperties = {
@@ -61,6 +70,10 @@ export function BottomToolbar({
   externalAssetDirectories,
   watchAllSessions,
   onToggleWatchAllSessions,
+  onTogglePip,
+  isPipActive,
+  isLargerLayout,
+  onToggleLargerLayout,
 }: BottomToolbarProps) {
   const [hovered, setHovered] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -129,16 +142,15 @@ export function BottomToolbar({
           onMouseLeave={() => setHovered(null)}
           style={{
             ...btnBase,
-            padding: '5px 12px',
             background:
               hovered === 'agent' || isFolderPickerOpen || isBypassMenuOpen
                 ? 'var(--pixel-agent-hover-bg)'
                 : 'var(--pixel-agent-bg)',
-            border: '2px solid var(--pixel-agent-border)',
+            borderColor: 'var(--pixel-agent-border)',
             color: 'var(--pixel-agent-text)',
           }}
         >
-          + Agent
+          <span style={{ fontSize: '18px' }}>+</span> Agent
         </button>
         {isBypassMenuOpen && (
           <div
@@ -254,6 +266,38 @@ export function BottomToolbar({
         title="Edit office layout"
       >
         Layout
+      </button>
+      <button
+        onClick={onTogglePip}
+        onMouseEnter={() => setHovered('pip')}
+        onMouseLeave={() => setHovered(null)}
+        style={
+          isPipActive
+            ? { ...btnActive }
+            : {
+                ...btnBase,
+                background: hovered === 'pip' ? 'var(--pixel-btn-hover-bg)' : btnBase.background,
+              }
+        }
+        title="Picture in Picture Mode"
+      >
+        PIP
+      </button>
+      <button
+        onClick={onToggleLargerLayout}
+        onMouseEnter={() => setHovered('scale')}
+        onMouseLeave={() => setHovered(null)}
+        style={
+          isLargerLayout
+            ? { ...btnActive }
+            : {
+                ...btnBase,
+                background: hovered === 'scale' ? 'var(--pixel-btn-hover-bg)' : btnBase.background,
+              }
+        }
+        title="Toggle Larger Layout (1.1x scaling)"
+      >
+        {isLargerLayout ? '🔍-' : '🔍+'}
       </button>
       <div style={{ position: 'relative' }}>
         <button

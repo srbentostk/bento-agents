@@ -1,4 +1,4 @@
-import type * as vscode from 'vscode';
+import * as vscode from 'vscode';
 
 import { PERMISSION_TIMER_DELAY_MS } from './constants.js';
 import type { AgentState } from './types.js';
@@ -133,11 +133,22 @@ export function startPermissionTimer(
 
     if (hasNonExempt) {
       agent.permissionSent = true;
-      console.log(`[Pixel Agents] Agent ${agentId}: possible permission wait detected`);
+      console.log(`[Bento Agents] Agent ${agentId}: possible permission wait detected`);
       webview?.postMessage({
         type: 'agentToolPermission',
         id: agentId,
       });
+      const notificationsEnabled = vscode.workspace.getConfiguration('bento-agents').get('notificationsEnabled', true);
+      if (notificationsEnabled) {
+        vscode.window.showInformationMessage(`Agent ${agentId} is asking for permission.`, 'Focus Terminal').then(selection => {
+          if (selection === 'Focus Terminal') {
+            const focusedAgent = agents.get(agentId);
+            if (focusedAgent && focusedAgent.terminalRef) {
+              focusedAgent.terminalRef.show();
+            }
+          }
+        });
+      }
       // Also notify stuck sub-agents
       for (const parentToolId of stuckSubagentParentToolIds) {
         webview?.postMessage({

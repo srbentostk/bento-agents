@@ -95,7 +95,7 @@ export function processTranscriptLine(
           if (block.type === 'tool_use' && block.id) {
             const toolName = block.name || '';
             const status = formatToolStatus(toolName, block.input || {});
-            console.log(`[Pixel Agents] Agent ${agentId} tool start: ${block.id} ${status}`);
+            console.log(`[Bento Agents] Agent ${agentId} tool start: ${block.id} ${status}`);
             agent.activeToolIds.add(block.id);
             agent.activeToolStatuses.set(block.id, status);
             agent.activeToolNames.set(block.id, toolName);
@@ -128,7 +128,7 @@ export function processTranscriptLine(
     } else if (record.type === 'assistant' && assistantContent === undefined) {
       // Assistant record with no recognizable content structure
       console.warn(
-        `[Pixel Agents] Agent ${agentId}: assistant record has no content. Keys: ${Object.keys(record).join(', ')}`,
+        `[Bento Agents] Agent ${agentId}: assistant record has no content. Keys: ${Object.keys(record).join(', ')}`,
       );
     } else if (record.type === 'progress') {
       processProgressRecord(agentId, record, agents, waitingTimers, permissionTimers, webview);
@@ -149,13 +149,13 @@ export function processTranscriptLine(
                 isAsyncAgentResult(block)
               ) {
                 console.log(
-                  `[Pixel Agents] Agent ${agentId} background agent launched: ${completedToolId}`,
+                  `[Bento Agents] Agent ${agentId} background agent launched: ${completedToolId}`,
                 );
                 agent.backgroundAgentToolIds.add(completedToolId);
                 continue; // don't mark as done yet
               }
 
-              console.log(`[Pixel Agents] Agent ${agentId} tool done: ${block.tool_use_id}`);
+              console.log(`[Bento Agents] Agent ${agentId} tool done: ${block.tool_use_id}`);
               // If the completed tool was a Task/Agent, clear its subagent tools
               if (completedToolName === 'Task' || completedToolName === 'Agent') {
                 agent.activeSubagentToolIds.delete(completedToolId);
@@ -196,6 +196,15 @@ export function processTranscriptLine(
         clearAgentActivity(agent, agentId, permissionTimers, webview);
         agent.hadToolsInTurn = false;
       }
+    } else if (record.type === 'error') {
+      const errMsg = record.error?.message || record.message || '';
+      if (typeof errMsg === 'string' && errMsg.toLowerCase().includes('rate limit')) {
+        webview?.postMessage({
+          type: 'agentStatus',
+          id: agentId,
+          status: 'strike',
+        });
+      }
     } else if (record.type === 'queue-operation' && record.operation === 'enqueue') {
       // Background agent completed — parse tool-use-id from XML content
       const content = record.content as string | undefined;
@@ -205,7 +214,7 @@ export function processTranscriptLine(
           const completedToolId = toolIdMatch[1];
           if (agent.backgroundAgentToolIds.has(completedToolId)) {
             console.log(
-              `[Pixel Agents] Agent ${agentId} background agent done: ${completedToolId}`,
+              `[Bento Agents] Agent ${agentId} background agent done: ${completedToolId}`,
             );
             agent.backgroundAgentToolIds.delete(completedToolId);
             agent.activeSubagentToolIds.delete(completedToolId);
@@ -286,7 +295,7 @@ export function processTranscriptLine(
       if (!knownSkippableTypes.has(record.type)) {
         agent.seenUnknownRecordTypes.add(record.type);
         console.log(
-          `[Pixel Agents] Agent ${agentId}: unrecognized record type '${record.type}'. ` +
+          `[Bento Agents] Agent ${agentId}: unrecognized record type '${record.type}'. ` +
             `Keys: ${Object.keys(record).join(', ')}`,
         );
       }
@@ -342,7 +351,7 @@ function processProgressRecord(
         const toolName = block.name || '';
         const status = formatToolStatus(toolName, block.input || {});
         console.log(
-          `[Pixel Agents] Agent ${agentId} subagent tool start: ${block.id} ${status} (parent: ${parentToolId})`,
+          `[Bento Agents] Agent ${agentId} subagent tool start: ${block.id} ${status} (parent: ${parentToolId})`,
         );
 
         // Track sub-tool IDs
@@ -381,7 +390,7 @@ function processProgressRecord(
     for (const block of content) {
       if (block.type === 'tool_result' && block.tool_use_id) {
         console.log(
-          `[Pixel Agents] Agent ${agentId} subagent tool done: ${block.tool_use_id} (parent: ${parentToolId})`,
+          `[Bento Agents] Agent ${agentId} subagent tool done: ${block.tool_use_id} (parent: ${parentToolId})`,
         );
 
         // Remove from tracking

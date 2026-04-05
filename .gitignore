@@ -21,17 +21,26 @@ Thumbs.db
 test-results/
 playwright-report/
 
-# Build artifacts
-*.vsix
+# Build artifacts - ignorar tudo EXCETO o VSIX atual do bento-agents na raiz
 *.map
+releases/*.vsix
+pixel-agents*.vsix
+
+# Manter rastreado: bento-agents-*.vsix na raiz (para distribuição via git)
+# Regra: apenas o VSIX mais recente fica na raiz; versões antigas vão para releases/
 
 # Environment files
 .env*
 !.env.example
 
-# Project-specific
+# Claude Code — arquivos de sessão, memória e configuração local
 .claude/
-/sprites-export
+**/.claude/
 
-# Local notes (not for commit)
+# Arquivos sensíveis
+*.pem
+*.key
+*.cert
+secrets.*
 /notes/
+/sprites-export

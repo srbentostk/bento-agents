@@ -39,6 +39,7 @@ interface OfficeCanvasProps {
   zoom: number;
   onZoomChange: (zoom: number) => void;
   panRef: React.MutableRefObject<{ x: number; y: number }>;
+  onFocusAgent?: (id: number) => void;
 }
 
 export function OfficeCanvas({
@@ -56,6 +57,7 @@ export function OfficeCanvas({
   zoom,
   onZoomChange,
   panRef,
+  onFocusAgent,
 }: OfficeCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -675,7 +677,10 @@ export function OfficeCanvas({
       const hitId = officeState.getCharacterAt(pos.worldX, pos.worldY);
       if (hitId !== null) {
         // Dismiss any active bubble on click
-        officeState.dismissBubble(hitId);
+        const bubbleType = officeState.dismissBubble(hitId);
+        if (bubbleType === 'permission') {
+          vscode.postMessage({ type: 'acceptPermission', agentId: hitId });
+        }
         // Toggle selection: click same agent deselects, different agent selects
         if (officeState.selectedAgentId === hitId) {
           officeState.selectedAgentId = null;
@@ -684,7 +689,10 @@ export function OfficeCanvas({
           officeState.selectedAgentId = hitId;
           officeState.cameraFollowId = hitId;
         }
-        onClick(hitId); // still focus terminal
+        onClick(hitId); // still focus terminal (classic selection)
+        if (onFocusAgent) {
+          onFocusAgent(hitId);
+        }
         return;
       }
 

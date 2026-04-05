@@ -16,6 +16,9 @@ interface ToolOverlayProps {
   panRef: React.RefObject<{ x: number; y: number }>;
   onCloseAgent: (id: number) => void;
   alwaysShowOverlay: boolean;
+  onAcceptPermission: (id: number) => void;
+  onFocusAgent: (id: number) => void;
+  onTogglePip: () => void;
 }
 
 /** Derive a short human-readable activity string from tools/status */
@@ -52,6 +55,9 @@ export function ToolOverlay({
   panRef,
   onCloseAgent,
   alwaysShowOverlay,
+  onAcceptPermission: onAcceptPermission,
+  onFocusAgent,
+  onTogglePip,
 }: ToolOverlayProps) {
   const [, setTick] = useState(0);
   useEffect(() => {
@@ -102,18 +108,24 @@ export function ToolOverlay({
           (deviceOffsetY + (ch.y + sittingOffset - TOOL_OVERLAY_VERTICAL_OFFSET) * zoom) / dpr;
 
         // Get activity text
-        const subHasPermission = isSub && ch.bubbleType === 'permission';
+        const isAngry = ch.bubbleType === 'angry';
+        const subHasPermission = isSub && (ch.bubbleType === 'permission' || isAngry);
         let activityText: string;
         if (isSub) {
           if (subHasPermission) {
-            activityText = 'Needs approval';
+            activityText = isAngry ? '😠 APROVAÇÃO!!!' : 'Needs approval';
           } else {
             const sub = subagentCharacters.find((s) => s.id === id);
             activityText = sub ? sub.label : 'Subtask';
           }
+        } else if (isAngry) {
+          activityText = '😠 APROVAÇÃO!!!';
         } else {
           activityText = getActivityText(id, agentTools, ch.isActive);
         }
+
+        // Phone prefix for agents working without a desk
+        const phonePrefix = ch.usingPhone && !isAngry ? '📱 ' : '';
 
         // Determine dot color
         const tools = agentTools[id];
@@ -122,7 +134,9 @@ export function ToolOverlay({
         const isActive = ch.isActive;
 
         let dotColor: string | null = null;
-        if (hasPermission) {
+        if (isAngry) {
+          dotColor = '#e74c3c'; // red — agent is angry
+        } else if (hasPermission) {
           dotColor = 'var(--pixel-status-permission)';
         } else if (isActive && hasActiveTools) {
           dotColor = 'var(--pixel-status-active)';
@@ -162,13 +176,14 @@ export function ToolOverlay({
             >
               {dotColor && (
                 <span
-                  className={isActive && !hasPermission ? 'pixel-agents-pulse' : undefined}
+                  className={isAngry || (isActive && !hasPermission) ? 'bento-agents-pulse' : undefined}
                   style={{
-                    width: 6,
-                    height: 6,
+                    width: isAngry ? 8 : 6,
+                    height: isAngry ? 8 : 6,
                     borderRadius: '50%',
                     background: dotColor,
                     flexShrink: 0,
+                    boxShadow: isAngry ? '0 0 6px #e74c3c' : undefined,
                   }}
                 />
               )}
@@ -177,13 +192,14 @@ export function ToolOverlay({
                   style={{
                     fontSize: isSub ? '20px' : '22px',
                     fontStyle: isSub ? 'italic' : undefined,
-                    color: 'var(--pixel-text)',
+                    color: isAngry ? '#ff4444' : 'var(--pixel-text)',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     display: 'block',
+                    fontWeight: isAngry ? 'bold' : undefined,
                   }}
                 >
-                  {activityText}
+                  {phonePrefix}{activityText}
                 </span>
                 {ch.folderName && (
                   <span
@@ -200,31 +216,92 @@ export function ToolOverlay({
                 )}
               </div>
               {isSelected && !isSub && (
+                <div style={{ display: 'flex', gap: 4, marginLeft: 6, alignItems: 'center' }}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onFocusAgent(id);
+                    }}
+                    title="Focus Agent Terminal"
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--pixel-text-dim)',
+                      cursor: 'pointer',
+                      padding: '0 2px',
+                      fontSize: '18px',
+                      lineHeight: 1,
+                    }}
+                  >
+                    🎯
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onTogglePip();
+                    }}
+                    title="Picture-in-Picture"
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--pixel-text-dim)',
+                      cursor: 'pointer',
+                      padding: '0 2px',
+                      fontSize: '18px',
+                      lineHeight: 1,
+                    }}
+                  >
+                    📺
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onCloseAgent(id);
+                    }}
+                    title="Close agent"
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--pixel-close-text)',
+                      cursor: 'pointer',
+                      padding: '0 2px',
+                      fontSize: '22px',
+                      lineHeight: 1,
+                      marginLeft: 2,
+                      flexShrink: 0,
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLElement).style.color = 'var(--pixel-close-hover)';
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.color = 'var(--pixel-close-text)';
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+              {hasPermission && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    onCloseAgent(id);
+                    const targetId = isSub ? (subagentCharacters.find(s => s.id === id)?.parentAgentId ?? id) : id;
+                    onAcceptPermission(targetId);
                   }}
-                  title="Close agent"
+                  title="Accept (Y)"
                   style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--pixel-close-text)',
+                    background: 'var(--pixel-status-permission)',
+                    border: '1px solid currentColor',
+                    color: 'white',
                     cursor: 'pointer',
-                    padding: '0 2px',
-                    fontSize: '26px',
-                    lineHeight: 1,
+                    padding: '2px 6px',
+                    fontSize: '18px',
                     marginLeft: 2,
                     flexShrink: 0,
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLElement).style.color = 'var(--pixel-close-hover)';
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLElement).style.color = 'var(--pixel-close-text)';
+                    borderRadius: 2
                   }}
                 >
-                  ×
+                  Y
                 </button>
               )}
             </div>

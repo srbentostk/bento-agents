@@ -21,9 +21,32 @@ export function toMajorMinor(version: string): string {
   return parts.length >= 2 ? `${parts[0]}.${parts[1]}` : version;
 }
 
-export const CHANGELOG_REPO_URL = 'https://github.com/pablodelucca/pixel-agents';
+export const CHANGELOG_REPO_URL = 'https://github.com/pablodelucca/bento-agents';
 
 export const changelogEntries: ChangelogEntry[] = [
+  {
+    version: '1.5',
+    sections: [
+      {
+        title: 'Features',
+        items: [
+          'Advanced Idle Behaviors — Agents sit on furniture, floor, or dance when idle',
+          'Retro AudioManager — Synthesized sound alerts for task status, permissions, and strikes',
+          '30 FPS Performance Cap — Optimized frame-gate for reduced CPU/RAM overhead',
+          'Strike Visuals — Red vignette and screen-shake on rate-limit events',
+          'UI Unification — 38px unified buttons and maximized canvas area',
+        ],
+      },
+      {
+        title: 'Fixes',
+        items: [
+          'Automatic 5-min inactivity despawn timer',
+          'Sprite frame corruption for new idle states',
+        ],
+      },
+    ],
+    contributors: [],
+  },
   {
     version: '1.2',
     sections: [

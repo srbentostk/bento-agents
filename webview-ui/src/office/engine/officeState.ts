@@ -11,6 +11,7 @@ import {
   INACTIVE_SEAT_TIMER_MIN_SEC,
   INACTIVE_SEAT_TIMER_RANGE_SEC,
   PALETTE_COUNT,
+  STRIKE_BUBBLE_DURATION_SEC,
   WAITING_BUBBLE_DURATION_SEC,
 } from '../../constants.js';
 import { getAnimationFrames, getCatalogEntry, getOnStateType } from '../layout/furnitureCatalog.js';
@@ -31,7 +32,13 @@ import type {
   TileType as TileTypeVal,
 } from '../types.js';
 import { CharacterState, Direction, MATRIX_EFFECT_DURATION, TILE_SIZE } from '../types.js';
-import { createCharacter, updateCharacter } from './characters.js';
+import * as AudioManager from '../audio/audioManager.js';
+import {
+  createCharacter,
+  setExitReachedCallback,
+  setPermissionEscalateCallback,
+  updateCharacter,
+} from './characters.js';
 import { matrixEffectSeeds } from './matrixEffect.js';
 
 export class OfficeState {
@@ -53,6 +60,89 @@ export class OfficeState {
   /** Reverse lookup: sub-agent character ID → parent info */
   subagentMeta: Map<number, { parentAgentId: number; parentToolId: string }> = new Map();
   private nextSubagentId = -1;
+  isMusicPlaying = false;
+  isGlobalStriking = false;
+  private globalStrikeTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** External callback: called when permission escalates (play sound in webview) */
+  onPermissionEscalate: ((id: number) => void) | null = null;
+
+  findAvailableSofa(ch: Character): { col: number; row: number } | null {
+    const sofas = this.layout.furniture.filter((f) => f.type.startsWith('SOFA'));
+    const occupied = new Set<string>();
+    for (const other of this.characters.values()) {
+      if (other.id !== ch.id && (other.isSittingOnCouch || other.isSittingOnFloor)) {
+           occupied.add(`${other.tileCol},${other.tileRow}`);
+      }
+    }
+    let best = null;
+    let bestDist = Infinity;
+    for (const sofa of sofas) {
+      const entry = getCatalogEntry(sofa.type);
+      if (!entry) continue;
+      for (let dr = 0; dr < entry.footprintH; dr++) {
+        for (let dc = 0; dc < entry.footprintW; dc++) {
+          const tc = sofa.col + dc;
+          const tr = sofa.row + dr;
+          if (!occupied.has(`${tc},${tr}`)) {
+            const d = Math.abs(tc - ch.tileCol) + Math.abs(tr - ch.tileRow);
+            if (d < bestDist) {
+              bestDist = d;
+              best = { col: tc, row: tr };
+            }
+          }
+        }
+      }
+    }
+    return best;
+  }
+
+  findFloorSpot(ch: Character): { col: number; row: number } | null {
+     // Find walkable tiles away from desks/electronics
+     const electronicsTiles = new Set<string>();
+     for (const item of this.layout.furniture) {
+       const entry = getCatalogEntry(item.type);
+        if (entry?.category === 'electronics' || entry?.isDesk || entry?.category === 'chairs') {
+         for (let dr = 0; dr < entry.footprintH; dr++) {
+           for (let dc = 0; dc < entry.footprintW; dc++) {
+             electronicsTiles.add(`${item.col + dc},${item.row + dr}`);
+           }
+         }
+       }
+     }
+     
+     const candidates = this.walkableTiles.filter(t => {
+        // Check if any electronics within 2 tiles
+        for (let dr = -2; dr <= 2; dr++) {
+           for (let dc = -2; dc <= 2; dc++) {
+              if (electronicsTiles.has(`${t.col + dc},${t.row + dr}`)) return false;
+           }
+        }
+        return true;
+     });
+     
+     if (candidates.length === 0) return this.walkableTiles[Math.floor(Math.random()*this.walkableTiles.length)];
+     
+     // Weighted random: prefer closer spots but still random
+     candidates.sort((a, b) => {
+        const da = Math.abs(a.col - ch.tileCol) + Math.abs(a.row - ch.tileRow);
+        const db = Math.abs(b.col - ch.tileCol) + Math.abs(b.row - ch.tileRow);
+        return da - db;
+     });
+     
+     // Take one of the 10 closest safe spots randomly
+     const topN = Math.min(10, candidates.length);
+     return candidates[Math.floor(Math.random() * topN)];
+  }
+
+  triggerGlobalStrike() {
+    this.isGlobalStriking = true;
+    if (this.globalStrikeTimer) clearTimeout(this.globalStrikeTimer);
+    this.globalStrikeTimer = setTimeout(() => {
+      this.isGlobalStriking = false;
+      this.globalStrikeTimer = null;
+    }, 5000);
+  }
 
   constructor(layout?: OfficeLayout) {
     this.layout = layout || createDefaultLayout();
@@ -61,6 +151,54 @@ export class OfficeState {
     this.blockedTiles = getBlockedTiles(this.layout.furniture);
     this.furniture = layoutToFurnitureInstances(this.layout.furniture);
     this.walkableTiles = getWalkableTiles(this.tileMap, this.blockedTiles);
+
+    // Wire character callbacks to this instance
+    setExitReachedCallback((id) => this.removeAgent(id));
+    setPermissionEscalateCallback((id) => {
+      AudioManager.playPermissionNeeded();
+      this.onPermissionEscalate?.(id);
+    });
+  }
+
+  onCharacterIdle(ch: Character): void {
+    const roll = Math.random();
+    if (roll < 0.2) {
+      // 20% chance to sit on a couch
+      const spot = this.findAvailableSofa(ch);
+      if (spot) {
+        const path = findPath(ch.tileCol, ch.tileRow, spot.col, spot.row, this.tileMap, this.blockedTiles);
+        if (path.length > 0) {
+          ch.path = path;
+          ch.targetState = CharacterState.SIT_COUCH;
+          ch.state = CharacterState.WALK;
+          ch.moveProgress = 0;
+          return;
+        }
+      }
+    } else if (roll < 0.4) {
+      // 20% chance to sit on the floor
+      const spot = this.findFloorSpot(ch);
+      if (spot) {
+        const path = findPath(ch.tileCol, ch.tileRow, spot.col, spot.row, this.tileMap, this.blockedTiles);
+        if (path.length > 0) {
+          ch.path = path;
+          ch.targetState = CharacterState.SIT_FLOOR;
+          ch.state = CharacterState.WALK;
+          ch.moveProgress = 0;
+          return;
+        }
+      }
+    }
+    
+    // Default: wander randomly
+    const target = this.walkableTiles[Math.floor(Math.random() * this.walkableTiles.length)];
+    const path = findPath(ch.tileCol, ch.tileRow, target.col, target.row, this.tileMap, this.blockedTiles);
+    if (path.length > 0) {
+      ch.path = path;
+      ch.state = CharacterState.WALK;
+      ch.moveProgress = 0;
+      ch.wanderCount++;
+    }
   }
 
   /** Rebuild all derived state from a new layout. Reassigns existing characters.
@@ -657,9 +795,53 @@ export class OfficeState {
 
   clearPermissionBubble(id: number): void {
     const ch = this.characters.get(id);
-    if (ch && ch.bubbleType === 'permission') {
+    if (ch && (ch.bubbleType === 'permission' || ch.bubbleType === 'angry')) {
       ch.bubbleType = null;
       ch.bubbleTimer = 0;
+      ch.permissionTimer = 0;
+    }
+  }
+
+  /** Walk an agent toward the nearest map edge, then despawn them */
+  startAgentExit(id: number): void {
+    const ch = this.characters.get(id);
+    if (!ch || ch.isSubagent || ch.isExiting) return;
+    ch.isExiting = true;
+    ch.isActive = false;
+    ch.bubbleType = null;
+
+    // Find the nearest walkable tile on the bottom edge
+    const cols = this.layout.cols;
+    const rows = this.layout.rows;
+    const edgeTiles: Array<{ col: number; row: number }> = [];
+    for (let c = 0; c < cols; c++) {
+      if (this.walkableTiles.some((t) => t.col === c && t.row === rows - 1)) {
+        edgeTiles.push({ col: c, row: rows - 1 });
+      }
+    }
+
+    // Find closest door-like tile (non-wall edge) — fallback to any walkable edge or nearest edge
+    let target: { col: number; row: number } | null = null;
+    let bestDist = Infinity;
+    const candidates = edgeTiles.length > 0 ? edgeTiles : this.walkableTiles.slice(-5);
+    for (const t of candidates) {
+      const d = Math.abs(t.col - ch.tileCol) + Math.abs(t.row - ch.tileRow);
+      if (d < bestDist) { bestDist = d; target = t; }
+    }
+    if (!target && this.walkableTiles.length > 0) {
+      target = this.walkableTiles[0];
+    }
+    if (!target) { this.removeAgent(id); return; }
+
+    const path = findPath(ch.tileCol, ch.tileRow, target.col, target.row, this.tileMap, this.blockedTiles);
+    if (path.length > 0) {
+      ch.path = path;
+      ch.moveProgress = 0;
+      ch.state = CharacterState.WALK;
+      ch.frame = 0;
+      ch.frameTimer = 0;
+    } else {
+      this.removeAgent(id);
     }
   }
 
@@ -668,20 +850,35 @@ export class OfficeState {
     if (ch) {
       ch.bubbleType = 'waiting';
       ch.bubbleTimer = WAITING_BUBBLE_DURATION_SEC;
+      AudioManager.playTaskDone();
     }
   }
 
-  /** Dismiss bubble on click — permission: instant, waiting: quick fade */
-  dismissBubble(id: number): void {
+  /** Trigger strike bubble (rate limit) */
+  triggerStrike(id: number): void {
     const ch = this.characters.get(id);
-    if (!ch || !ch.bubbleType) return;
-    if (ch.bubbleType === 'permission') {
+    if (ch) {
+      ch.bubbleType = 'strike';
+      ch.bubbleTimer = STRIKE_BUBBLE_DURATION_SEC;
+      AudioManager.playStrike();
+    }
+  }
+
+  /** Dismiss bubble on click — returns bubble type if it was an active bubble */
+  dismissBubble(id: number): Character['bubbleType'] {
+    const ch = this.characters.get(id);
+    if (!ch || !ch.bubbleType) return null;
+    const oldType = ch.bubbleType;
+    if (ch.bubbleType === 'permission' || ch.bubbleType === 'strike') {
       ch.bubbleType = null;
       ch.bubbleTimer = 0;
+      AudioManager.playBubblePop();
     } else if (ch.bubbleType === 'waiting') {
       // Trigger immediate fade (0.3s remaining)
       ch.bubbleTimer = Math.min(ch.bubbleTimer, DISMISS_BUBBLE_FAST_FADE_SEC);
+      AudioManager.playBubblePop();
     }
+    return oldType;
   }
 
   update(dt: number): void {
@@ -712,10 +909,31 @@ export class OfficeState {
         continue; // skip normal FSM while effect is active
       }
 
+      // Update dancing state based on music
+      ch.isDancing = this.isMusicPlaying && ch.state === CharacterState.IDLE;
+
+      if (ch.shouldExit && !ch.isExiting) {
+        ch.shouldExit = false;
+        this.startAgentExit(ch.id);
+      }
+
       // Temporarily unblock own seat so character can pathfind to it
       this.withOwnSeatUnblocked(ch, () =>
-        updateCharacter(ch, dt, this.walkableTiles, this.seats, this.tileMap, this.blockedTiles),
+        updateCharacter(ch, dt, this.walkableTiles, this.seats, this.tileMap, this.blockedTiles, (c) => this.onCharacterIdle(c)),
       );
+
+      // Inactivity tracking: increment if in any idle/sitting/dancing state
+      const isPerformingAction = ch.state === CharacterState.TYPE || ch.state === CharacterState.WALK || ch.state === CharacterState.ESCAPE;
+      if (!isPerformingAction && !ch.matrixEffect) {
+        ch.inactiveSecs = (ch.inactiveSecs || 0) + dt;
+      } else {
+        ch.inactiveSecs = 0;
+      }
+
+      // Auto-despawn after 5 minutes (300s) of inactivity
+      if ((ch.inactiveSecs || 0) > 300 && !ch.isExiting && !ch.matrixEffect) {
+        this.startAgentExit(ch.id);
+      }
 
       // Tick bubble timer for waiting bubbles
       if (ch.bubbleType === 'waiting') {

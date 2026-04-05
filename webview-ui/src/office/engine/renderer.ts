@@ -35,6 +35,7 @@ import { getColorizedFloorSprite, hasFloorSprites, WALL_COLOR } from '../floorTi
 import { getCachedSprite, getOutlineSprite } from '../sprites/spriteCache.js';
 import {
   BUBBLE_PERMISSION_SPRITE,
+  BUBBLE_STRIKE_SPRITE,
   BUBBLE_WAITING_SPRITE,
   getCharacterSprites,
 } from '../sprites/spriteData.js';
@@ -490,9 +491,13 @@ export function renderBubbles(
     if (!ch.bubbleType) continue;
 
     const sprite =
-      ch.bubbleType === 'permission' ? BUBBLE_PERMISSION_SPRITE : BUBBLE_WAITING_SPRITE;
+      ch.bubbleType === 'permission'
+        ? BUBBLE_PERMISSION_SPRITE
+        : ch.bubbleType === 'strike' || ch.bubbleType === 'angry'
+          ? BUBBLE_STRIKE_SPRITE
+          : BUBBLE_WAITING_SPRITE;
 
-    // Compute opacity: permission = full, waiting = fade in last 0.5s
+    // Compute opacity: permission/strike = full, waiting = fade in last 0.5s
     let alpha = 1.0;
     if (ch.bubbleType === 'waiting' && ch.bubbleTimer < BUBBLE_FADE_DURATION_SEC) {
       alpha = ch.bubbleTimer / BUBBLE_FADE_DURATION_SEC;

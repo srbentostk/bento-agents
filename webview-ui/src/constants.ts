@@ -2,8 +2,8 @@ import type { FloorColor } from './office/types.js';
 
 // ── Grid & Layout ────────────────────────────────────────────
 export const TILE_SIZE = 16;
-export const DEFAULT_COLS = 20;
-export const DEFAULT_ROWS = 11;
+export const DEFAULT_COLS = 48;
+export const DEFAULT_ROWS = 30;
 export const MAX_COLS = 64;
 export const MAX_ROWS = 64;
 
@@ -106,6 +106,7 @@ export const WHATS_NEW_FADE_MS = 1000;
 // ── Game Logic ───────────────────────────────────────────────
 export const MAX_DELTA_TIME_SEC = 0.1;
 export const WAITING_BUBBLE_DURATION_SEC = 2.0;
+export const STRIKE_BUBBLE_DURATION_SEC = 5.0;
 export const DISMISS_BUBBLE_FAST_FADE_SEC = 0.3;
 export const INACTIVE_SEAT_TIMER_MIN_SEC = 3.0;
 export const INACTIVE_SEAT_TIMER_RANGE_SEC = 2.0;
@@ -118,3 +119,25 @@ export const CHARACTER_HIT_HALF_WIDTH = 8;
 export const CHARACTER_HIT_HEIGHT = 24;
 export const TOOL_OVERLAY_VERTICAL_OFFSET = 32;
 export const PULSE_ANIMATION_DURATION_SEC = 1.5;
+
+// ── Idle Exit ────────────────────────────────────────────────
+/** Seconds of inactivity before a character walks to the exit */
+export const IDLE_EXIT_TIMEOUT_SEC = 300; // 5 minutes
+
+// ── Permission Escalation ────────────────────────────────────
+/** Seconds before re-playing the permission sound */
+export const PERMISSION_ESCALATE_SEC = 60;
+/** Seconds before the character becomes visibly angry */
+export const PERMISSION_ANGRY_SEC = 120;
+
+// ── Server Lifecycle ─────────────────────────────────────────
+/** Seconds before an idle server disappears from the datacenter */
+export const SERVER_IDLE_REMOVE_SEC = 300; // 5 minutes
+
+// ── Datacenter Layout ────────────────────────────────────────
+/** Starting column of the datacenter zone in the layout */
+export const DATACENTER_START_COL = 29;
+/** Starting row of the datacenter zone */
+export const DATACENTER_START_ROW = 2;
+/** Number of server towers per row in the datacenter grid */
+export const DATACENTER_SERVERS_PER_ROW = 4;

@@ -1,174 +1,196 @@
 <h1 align="center">
-    <a href="https://github.com/pablodelucca/pixel-agents/discussions">
-        <img src="webview-ui/public/banner.png" alt="Pixel Agents">
-    </a>
+  🕵️ Bento Agents
 </h1>
 
-<h2 align="center" style="padding-bottom: 20px;">
-  The game interface where AI agents build real things
-</h2>
-
-<div align="center" style="margin-top: 25px;">
-
-[![version](https://img.shields.io/endpoint?url=https%3A%2F%2Fgist.githubusercontent.com%2Fpablodelucca%2F3cd28398fa4a2c0a636e1d51d41aee39%2Fraw%2Fversion.json)](https://github.com/pablodelucca/pixel-agents/releases)
-[![marketplaces](https://img.shields.io/endpoint?url=https%3A%2F%2Fgist.githubusercontent.com%2Fpablodelucca%2F3cd28398fa4a2c0a636e1d51d41aee39%2Fraw%2Finstalls.json)](https://marketplace.visualstudio.com/items?itemName=pablodelucca.pixel-agents)
-[![stars](https://img.shields.io/github/stars/pablodelucca/pixel-agents?logo=github&color=0183ff&style=flat)](https://github.com/pablodelucca/pixel-agents/stargazers)
-[![license](https://img.shields.io/github/license/pablodelucca/pixel-agents?color=0183ff&style=flat)](https://github.com/pablodelucca/pixel-agents/blob/main/LICENSE)
-[![good first issues](https://img.shields.io/github/issues/pablodelucca/pixel-agents/good%20first%20issue?color=7057ff&label=good%20first%20issues)](https://github.com/pablodelucca/pixel-agents/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)
-
-</div>
-
-<div align="center">
-<a href="https://marketplace.visualstudio.com/items?itemName=pablodelucca.pixel-agents">🛒 VS Code Marketplace</a> • <a href="https://github.com/pablodelucca/pixel-agents/discussions">💬 Discussions</a> • <a href="https://github.com/pablodelucca/pixel-agents/issues">🐛 Issues</a> • <a href="CONTRIBUTING.md">🤝 Contributing</a> • <a href="CHANGELOG.md">📋 Changelog</a>
-</div>
-
-<br/>
-
-Pixel Agents turns multi-agent AI systems into something you can actually see and manage. Each agent becomes a character in a pixel art office. They walk around, sit at their desk, and visually reflect what they are doing — typing when writing code, reading when searching files, waiting when it needs your attention.
-
-Right now it works as a VS Code extension with Claude Code. The vision though, is a fully agent-agnostic, platform-agnostic interface for orchestrating any AI agents, deployable anywhere.
-
-This is the source code for the free Pixel Agents extension for VS Code — install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=pablodelucca.pixel-agents) or [Open VSX](https://open-vsx.org/extension/pablodelucca/pixel-agents) with the full furniture catalog included.
-
-![Pixel Agents screenshot](webview-ui/public/Screenshot.jpg)
-
-## Features
-
-- **One agent, one character** — every Claude Code terminal gets its own animated character
-- **Live activity tracking** — characters animate based on what the agent is actually doing (writing, reading, running commands)
-- **Office layout editor** — design your office with floors, walls, and furniture using a built-in editor
-- **Speech bubbles** — visual indicators when an agent is waiting for input or needs permission
-- **Sound notifications** — optional chime when an agent finishes its turn
-- **Sub-agent visualization** — Task tool sub-agents spawn as separate characters linked to their parent
-- **Persistent layouts** — your office design is saved and shared across VS Code windows
-- **External asset directories** — load custom or third-party furniture packs from any folder on your machine
-- **Diverse characters** — 6 diverse characters. These are based on the amazing work of [JIK-A-4, Metro City](https://jik-a-4.itch.io/metrocity-free-topdown-character-pack).
-
 <p align="center">
-  <img src="webview-ui/public/characters.png" alt="Pixel Agents characters" width="320" height="72" style="image-rendering: pixelated;">
+  <strong>Agência B.E.N.T.O. — seu escritório de agentes secretos no VSCode</strong><br>
+  Visualize seus agentes do Claude Code como espiões de terno e gravata operando em tempo real
 </p>
 
-## Requirements
+<p align="center">
+  <img src="https://img.shields.io/badge/VSCode-Extension-007ACC?style=flat-square&logo=visual-studio-code" />
+  <img src="https://img.shields.io/badge/Claude%20Code-Compatible-orange?style=flat-square" />
+  <img src="https://img.shields.io/badge/version-1.5.0-gold?style=flat-square" />
+</p>
 
-- VS Code 1.105.0 or later
-- [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) installed and configured
-- **Platform**: Windows, Linux, and macOS are supported
+---
 
-## Getting Started
+## O que é?
 
-If you just want to use Pixel Agents, the easiest way is to download the [VS Code extension](https://marketplace.visualstudio.com/items?itemName=pablodelucca.pixel-agents). If you want to play with the code, develop, or contribute, then:
+**Bento Agents** é uma extensão para VSCode que transforma suas sessões do [Claude Code](https://claude.ai/code) em uma sala de operações secreta em pixel art. Cada agente vira um espião animado — de terno, gravata e óculos escuros — trabalhando em tempo real no escritório da **Agência B.E.N.T.O.**
 
-### Install from source
+Fork do [pixel-agents](https://github.com/pablodelucca/pixel-agents), completamente reimaginado com tema de agência de inteligência.
 
-```bash
-git clone https://github.com/pablodelucca/pixel-agents.git
-cd pixel-agents
-npm install
-cd webview-ui && npm install && cd ..
-npm run build
+---
+
+## Funcionalidades
+
+### 🕵️ Agentes com Codinomes
+Cada sessão do Claude Code recebe automaticamente um codinome único, determinístico a partir do ID da sessão:
+
+> **Agente Falcão · Sombra · Cobra · Lobo · Raposa · Águia · Touro · Fera · Raven · Cipher · Ghost · Viper · Nova · Storm · Lynx · Rook · Fox · Jade · Echo · Steel · Titan · Blaze · Shade · Frost · Hawk · Wolf · Onyx · Kite**
+
+O mesmo agente sempre recebe o mesmo codinome — não é aleatório por sessão, é determinístico pelo ID da sessão do Claude Code.
+
+```javascript
+// Função de codinome determinístico
+const NAMES = ["Falcão","Sombra","Cobra","Lobo","Raposa","Águia","Touro","Fera",
+  "Raven","Cipher","Ghost","Viper","Nova","Storm","Lynx","Rook",
+  "Fox","Jade","Echo","Steel","Titan","Blaze","Shade","Frost","Hawk","Wolf","Onyx","Kite"];
+
+function bentoName(id) {
+  let s = 0;
+  for (let i = 0; i < (id||'').length; i++) s = (s*31 + id.charCodeAt(i)) >>> 0;
+  return 'Agente ' + NAMES[s % NAMES.length];
+}
 ```
 
-Then press **F5** in VS Code to launch the Extension Development Host.
+### 🏢 Escritório da Agência — 5 Zonas
+O mapa tem **54×34 tiles** dividido em zonas temáticas:
 
-### Usage
+| Zona | Localização | Descrição |
+|------|-------------|-----------|
+| **Sala de Operações** | Cols 1–26, Rows 1–16 | Workstations dos agentes — piso âmbar quente |
+| **Datacenter** | Cols 28–52, Rows 1–16 | Torres de servidor — piso azul-petróleo frio |
+| **Corredor** | Rows 18–19 | Passagem central entre as salas |
+| **Sala de Briefing** | Cols 1–22, Rows 21–31 | Mesa de conferência, sofás, TV de missões |
+| **Sala de Descanso** | Cols 24–52, Rows 21–31 | Sofás, plantas, cafeteira — descompressão |
 
-1. Open the **Pixel Agents** panel (it appears in the bottom panel area alongside your terminal)
-2. Click **+ Agent** to spawn a new Claude Code terminal and its character. Right-click for the option to launch with `--dangerously-skip-permissions` (bypasses all tool approval prompts)
-3. Start coding with Claude — watch the character react in real time
-4. Click a character to select it, then click a seat to reassign it
-5. Click **Layout** to open the office editor and customize your space
+### 🎯 Comportamentos dos Agentes
 
-## Layout Editor
+**Trabalhando em computador** — o agente senta na estação de trabalho e digita enquanto o Claude Code está ativo.
 
-The built-in editor lets you design your office:
+**📱 Trabalhando no telefone** — agentes sem computador disponível puxam um telefone e trabalham nele. O overlay exibe `📱` antes do status da tarefa atual.
 
-- **Floor** — Full HSB color control
-- **Walls** — Auto-tiling walls with color customization
-- **Tools** — Select, paint, erase, place, eyedropper, pick
-- **Undo/Redo** — 50 levels with Ctrl+Z / Ctrl+Y
-- **Export/Import** — Share layouts as JSON files via the Settings modal
+**💤 Timeout de ociosidade (5 min)** — após 5 minutos sem atividade, o agente caminha até a porta e desaparece. Servidores ociosos também somem automaticamente.
 
-The grid is expandable up to 64×64 tiles. Click the ghost border outside the current grid to grow it.
+**🔔 Solicitação de aprovação** — quando o Claude Code precisa de aprovação do usuário:
+- Um som toca imediatamente
+- O overlay exibe `Needs approval`
 
-### Office Assets
+**😠 Escalada de aprovação** — se a aprovação não chega:
+- Após 60 segundos: toca um som de escalada (notas ascendentes mais altas)
+- Após 120 segundos: o agente fica **visivelmente com raiva** — o overlay exibe `😠 APROVAÇÃO!!!` em vermelho pulsante com glow, e toca um barulho urgente e irritado (buzzer sawtooth)
 
-All office assets (furniture, floors, walls) are now **fully open-source** and included in this repository under `webview-ui/public/assets/`. No external purchases or imports are needed — everything works out of the box.
+### 🖥️ Datacenter com Servidores Node.js
+- Detecta automaticamente servidores Node.js iniciados pelos agentes ou pelo terminal
+- Cada servidor aparece como uma **torre de PC** no datacenter, **organizada em grade** (não em linha reta)
+- LED de status: 🟢 online · 🔴 erro · ⚫ parado
+- **Clique na torre** para abrir o painel de logs em tempo real
+- Painel lateral com lista de todos os servidores, portas e PIDs
 
-Each furniture item lives in its own folder under `assets/furniture/` with a `manifest.json` that declares its sprites, rotation groups, state groups (on/off), and animation frames. Floor tiles are individual PNGs in `assets/floors/`, and wall tile sets are in `assets/walls/`. This modular structure makes it easy to add, remove, or modify assets without touching any code.
+```
+Datacenter (cols 28–52)
+┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐
+│ 🟢  │ │ 🟢  │ │ 🔴  │ │ 🟢  │   ← linha 1
+│:3000│ │:8080│ │:5432│ │:6379│
+└─────┘ └─────┘ └─────┘ └─────┘
+┌─────┐ ┌─────┐
+│ 🟢  │ │ ⚫  │                      ← linha 2
+│:4000│ │:9000│
+└─────┘ └─────┘
+```
 
-To add a new furniture item, create a folder in `webview-ui/public/assets/furniture/` with your PNG sprite(s) and a `manifest.json`, then rebuild. The asset manager (`scripts/asset-manager.html`) provides a visual editor for creating and editing manifests.
+### 🎨 Editor de Layout
+- Pinte tiles de piso com texturas e cores personalizadas
+- Adicione, mova e rotacione móveis (mesas, cadeiras, plantas, PCs, sofás, relógios, quadros...)
+- Salve e exporte o layout como JSON para compartilhar com a equipe
+- `Ctrl+Z` / `Ctrl+Y` — desfaz/refaz
 
-To use furniture from an external directory, open Settings → **Add Asset Directory**. See [docs/external-assets.md](docs/external-assets.md) for the full manifest format and how to use third-party asset packs.
+### 🔄 Atualizações Automáticas
+- Botão de atualização no painel — verifica se há nova versão no repositório git
+- Pulsa em dourado quando uma atualização está disponível
+- Abre `releases/latest/` para instalar o novo VSIX sem sair do VSCode
 
-Characters are based on the amazing work of [JIK-A-4, Metro City](https://jik-a-4.itch.io/metrocity-free-topdown-character-pack).
+---
 
-## How It Works
+## Instalação
 
-Pixel Agents watches Claude Code's JSONL transcript files to track what each agent is doing. When an agent uses a tool (like writing a file or running a command), the extension detects it and updates the character's animation accordingly. No modifications to Claude Code are needed — it's purely observational.
+1. Baixe `bento-agents-1.5.0.vsix` de `releases/latest/` neste repositório
+2. No VSCode: `Extensions (Ctrl+Shift+X)` → `···` → **Install from VSIX**
+3. Selecione o arquivo `.vsix`
+4. Abra o painel: `Ctrl+Shift+P` → **Bento Agents: Show Panel**
 
-The webview runs a lightweight game loop with canvas rendering, BFS pathfinding, and a character state machine (idle → walk → type/read). Everything is pixel-perfect at integer zoom levels.
+---
 
-## Tech Stack
+## Como usar
 
-- **Extension**: TypeScript, VS Code Webview API, esbuild
-- **Webview**: React 19, TypeScript, Vite, Canvas 2D
+### Visualizar agentes
+Abra qualquer projeto com Claude Code ativo. Os agentes aparecem no painel automaticamente como espiões animados caminhando pelo escritório e sentando em suas workstations.
 
-## Known Limitations
+### Aprovações do Claude Code
+Quando o Claude Code precisar de permissão para executar um comando, o agente acende o alerta. Se você demorar para aprovar:
 
-- **Agent-terminal sync** — the way agents are connected to Claude Code terminal instances is not super robust and sometimes desyncs, especially when terminals are rapidly opened/closed or restored across sessions.
-- **Heuristic-based status detection** — Claude Code's JSONL transcript format does not provide clear signals for when an agent is waiting for user input or when it has finished its turn. The current detection is based on heuristics (idle timers, turn-duration events) and often misfires — agents may briefly show the wrong status or miss transitions.
-- **Linux/macOS tip** — if you launch VS Code without a folder open (e.g. bare `code` command), agents will start in your home directory. This is fully supported; just be aware your Claude sessions will be tracked under `~/.claude/projects/` using your home directory as the project root.
+1. **Imediato** — som de notificação + overlay `Needs approval`
+2. **60 seg** — som mais intenso
+3. **120 seg** — agente fica com raiva 😠, overlay vermelho pulsante, buzzer urgente
 
-## Troubleshooting
+### Monitor de Servidores
+Quando um servidor Node.js sobe (ex: `npm run dev`), ele aparece como torre no datacenter. Clique para ver os logs.
 
-If your agent appears stuck on idle or doesn't spawn:
+### Editor de Layout
+Clique no ícone ✏️ no painel para editar o escritório. Salve com **Save Layout**.
 
-1. **Debug View** — In the Pixel Agents panel, click the gear icon (Settings), then toggle **Debug View**. This shows connection diagnostics per agent: JSONL file status, lines parsed, last data timestamp, and file path. If you see "JSONL not found", the extension can't locate the session file.
-2. **Debug Console** — If you're running from source (Extension Development Host via F5), open VS Code's **View > Debug Console**. Search for `[Pixel Agents]` to see detailed logs: project directory resolution, JSONL polling status, path encoding mismatches, and unrecognized JSONL record types.
+---
 
-## Where This Is Going
+## Estrutura do Projeto
 
-The long-term vision is an interface where managing AI agents feels like playing the Sims, but the results are real things built.
+```
+src/
+├── extension.ts                  # Entry point VSCode
+├── agentManager.ts               # Detecta e rastreia sessões Claude Code
+├── serverManager.ts              # Detecta servidores Node.js rodando
+├── BentoAgentsViewProvider.ts    # Webview provider (ponte extension↔webview)
+├── transcriptParser.ts           # Parseia logs JSONL do Claude Code
+└── fileWatcher.ts                # Monitora arquivos de sessão
 
-- **Agents as characters** you can see, assign, monitor, and redirect, each with visible roles (designer, coder, writer, reviewer), stats, context usage, and tools.
-- **Desks as directories** — drag an agent to a desk to assign it to a project or working directory.
-- **An office as a project** — with a Kanban board on the wall where idle agents can pick up tasks autonomously.
-- **Deep inspection** — click any agent to see its model, branch, system prompt, and full work history. Interrupt it, chat with it, or redirect it.
-- **Token health bars** — rate limits and context windows visualized as in-game stats.
-- **Fully customizable** — upload your own character sprites, themes, and office assets. Eventually maybe even move beyond pixel art into 3D or VR.
+webview-ui/src/
+├── office/
+│   ├── engine/                   # Game loop, personagens, renderizador canvas
+│   ├── layout/                   # Catálogo de móveis, serialização de layout
+│   └── sprites/                  # Sprites pixel art dos personagens
+├── components/
+│   ├── ServerPanel.tsx           # Painel lateral de servidores
+│   ├── ServerRackOverlay.tsx     # Torres de PC renderizadas no mapa (grade)
+│   └── ServerRackLogModal.tsx    # Modal flutuante de logs
+├── notificationSound.ts          # Sons de notificação e escalada
+└── App.tsx
 
-For this to work, the architecture needs to be modular at every level:
+releases/
+├── latest/                       # VSIX da versão mais recente
+└── archive/                      # Versões anteriores
+```
 
-- **Platform-agnostic**: VS Code extension today, Electron app, web app, or any other host environment tomorrow.
-- **Agent-agnostic**: Claude Code today, but built to support Codex, OpenCode, Gemini, Cursor, Copilot, and others through composable adapters.
-- **Theme-agnostic**: community-created assets, skins, and themes from any contributor.
+---
 
-We're actively working on the core module and adapter architecture that makes this possible. If you're interested to talk about this further, please visit our [Discussions Section](https://github.com/pablodelucca/pixel-agents/discussions).
+## Desenvolvimento
 
+```bash
+npm install
+cd webview-ui && npm install && cd ..
 
-## Community & Contributing
+# Build completo
+npm run package
 
-Use **[Issues](https://github.com/pablodelucca/pixel-agents/issues)** to report bugs or request features. Join **[Discussions](https://github.com/pablodelucca/pixel-agents/discussions)** for questions and conversations.
+# Gerar novo VSIX
+npx vsce package --out bento-agents-X.Y.Z.vsix
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for instructions on how to contribute.
+# Mover versão anterior para arquivo
+mv releases/latest/bento-agents-*.vsix releases/archive/
+mv bento-agents-X.Y.Z.vsix releases/latest/
 
-Please read our [Code of Conduct](CODE_OF_CONDUCT.md) before participating.
+# Tag de versão
+git tag vX.Y.Z && git push origin vX.Y.Z
+```
 
-## Supporting the Project
+---
 
-If you find Pixel Agents useful, consider supporting its development:
+## Créditos
 
-<a href="https://github.com/sponsors/pablodelucca">
-  <img src="https://img.shields.io/badge/Sponsor-GitHub-ea4aaa?logo=github" alt="GitHub Sponsors">
-</a>
-<a href="https://ko-fi.com/pablodelucca">
-  <img src="https://img.shields.io/badge/Support-Ko--fi-ff5e5b?logo=ko-fi" alt="Ko-fi">
-</a>
+- Fork de [pixel-agents](https://github.com/pablodelucca/pixel-agents) por Pablo de Lucca
+- Customizado por **mechamedebento** para o projeto B.E.N.T.O.
+- Sprites pixel art originais do pixel-agents, modificados com terno, gravata e óculos escuros
 
-## Star History
+---
 
-[![Star History Chart](https://api.star-history.com/svg?repos=pablodelucca/pixel-agents&type=Date)](https://www.star-history.com/?repos=pablodelucca%2Fpixel-agents&type=date&legend=bottom-right)
-
-## License
-
-This project is licensed under the [MIT License](LICENSE).
+<p align="center"><em>Agência B.E.N.T.O. — Operação em andamento 🕵️</em></p>

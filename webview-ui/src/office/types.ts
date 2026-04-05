@@ -40,6 +40,10 @@ export const CharacterState = {
   IDLE: 'idle',
   WALK: 'walk',
   TYPE: 'type',
+  ESCAPE: 'escape',
+  SIT_COUCH: 'sit_couch',
+  SIT_FLOOR: 'sit_floor',
+  DANCE: 'dance',
 } as const;
 export type CharacterState = (typeof CharacterState)[keyof typeof CharacterState];
 
@@ -173,9 +177,15 @@ export interface Character {
   /** Assigned seat uid, or null if no seat */
   seatId: string | null;
   /** Active speech bubble type, or null if none showing */
-  bubbleType: 'permission' | 'waiting' | null;
+  bubbleType: 'permission' | 'waiting' | 'angry' | 'strike' | null;
   /** Countdown timer for bubble (waiting: 2→0, permission: unused) */
   bubbleTimer: number;
+  /** Counts up while bubbleType === 'permission' — used for escalation */
+  permissionTimer: number;
+  /** True when agent is active but has no desk — shows phone instead of typing */
+  usingPhone: boolean;
+  /** True when character is walking to the exit to leave */
+  isExiting: boolean;
   /** Timer to stay seated while inactive after seat reassignment (counts down to 0) */
   seatTimer: number;
   /** Whether this character represents a sub-agent (spawned by Task tool) */
@@ -190,4 +200,10 @@ export interface Character {
   matrixEffectSeeds: number[];
   /** Workspace folder name (only set for multi-root workspaces) */
   folderName?: string;
+  isDancing?: boolean;
+  isSittingOnCouch?: boolean;
+  isSittingOnFloor?: boolean;
+  inactiveSecs?: number;
+  shouldExit?: boolean;
+  targetState?: CharacterState;
 }

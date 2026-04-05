@@ -120,7 +120,7 @@ export function startFileWatching(
           // Found a /clear file (has last-prompt) → claim it
           deps.knownJsonlFiles.add(file);
           console.log(
-            `[Pixel Agents] New JSONL detected: ${path.basename(file)}, reassigning to agent ${agentId} (/clear)`,
+            `[Bento Agents] New JSONL detected: ${path.basename(file)}, reassigning to agent ${agentId} (/clear)`,
           );
           reassignAgentToFile(
             agentId,
@@ -186,7 +186,7 @@ export function readNewLines(
       processTranscriptLine(agentId, line, agents, waitingTimers, permissionTimers, webview);
     }
   } catch (e) {
-    console.log(`[Pixel Agents] Read error for agent ${agentId}: ${e}`);
+    console.log(`[Bento Agents] Read error for agent ${agentId}: ${e}`);
   }
 }
 
@@ -374,7 +374,7 @@ function scanForNewJsonlFiles(
   for (const [id, agent] of agents) {
     if (agent.isExternal) continue;
     if (agent.terminalRef && agent.terminalRef.exitStatus !== undefined) {
-      console.log(`[Pixel Agents] Agent ${id}: terminal closed, cleaning up orphan`);
+      console.log(`[Bento Agents] Agent ${id}: terminal closed, cleaning up orphan`);
       // Stop file watching
       fileWatchers.get(id)?.close();
       fileWatchers.delete(id);
@@ -434,7 +434,7 @@ function adoptTerminalForFile(
   persistAgents();
 
   console.log(
-    `[Pixel Agents] Agent ${id}: adopted terminal "${terminal.name}" for ${path.basename(jsonlFile)}`,
+    `[Bento Agents] Agent ${id}: adopted terminal "${terminal.name}" for ${path.basename(jsonlFile)}`,
   );
   webview?.postMessage({ type: 'agentCreated', id });
 
@@ -502,7 +502,7 @@ function adoptExternalSession(
   persistAgents();
 
   console.log(
-    `[Pixel Agents] Agent ${id}: detected external session ${path.basename(jsonlFile)}${folderName ? ` (${folderName})` : ''}`,
+    `[Bento Agents] Agent ${id}: detected external session ${path.basename(jsonlFile)}${folderName ? ` (${folderName})` : ''}`,
   );
   webview?.postMessage({ type: 'agentCreated', id, isExternal: true, folderName });
 
@@ -620,7 +620,7 @@ function scanExternalDir(
       }
       if (tracked) continue;
       seededMtimes.delete(file);
-      console.log(`[Pixel Agents] Resumed session detected: ${path.basename(file)}`);
+      console.log(`[Bento Agents] Resumed session detected: ${path.basename(file)}`);
       adoptExternalSession(
         file,
         projectDir,
@@ -825,7 +825,7 @@ export function startStaleExternalAgentCheck(
         // Remove from knownJsonlFiles so the file can be re-adopted if it becomes active again
         knownJsonlFiles.delete(agent.jsonlFile);
       }
-      console.log(`[Pixel Agents] Removing stale external agent ${id}`);
+      console.log(`[Bento Agents] Removing stale external agent ${id}`);
       removeAgent(
         id,
         agents,

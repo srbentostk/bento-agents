@@ -1,5 +1,25 @@
 # Changelog
 
+## v1.5.0
+
+### Features
+
+- **Advanced Idle Behaviors** — Agents now autonomously transition to sitting on furniture (couches, chairs), sitting on the floor, or dancing when idle. Improves environmental immersion.
+- **Synthesized AudioManager** — Web Audio API integration for retro-style notification sounds. Includes sounds for task completion, permission requests, strikes, and bubble pops.
+- **30 FPS Performance Cap** — Implemented a frame-gate in the game loop to reduce CPU/RAM overhead, ensuring a stable and efficient simulation.
+- **Strike Visual Effects** — Integrated a red vignette and screen-shake effect triggered by rate-limit "Strike" events for better visual feedback.
+- **UI/CSS Unification** — Maximized canvas area and unified button styles (38px height, consistent pixel font/borders) across the main application and toolbar.
+
+### Fixes
+
+- **Agent Despawn Logic** — Implemented a 5-minute inactivity timer (300s) that triggers an exit animation and removes idle agents from the workspace.
+- **Sprite Animation Corruption** — Fixed issues with frame indexing for new idle states.
+
+### Maintenance
+
+- Update version metadata across all project documentation.
+- Performance optimization of the main rendering loop.
+
 ## v1.2.0
 
 ### Features

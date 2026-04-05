@@ -25,29 +25,29 @@ export const GLOBAL_SCAN_ACTIVE_MIN_SIZE = 3_072; // 3KB
 /** Only adopt global JSONL files modified within this window */
 export const GLOBAL_SCAN_ACTIVE_MAX_AGE_MS = 600_000; // 10 minutes
 /** VS Code globalState key for the Watch All Sessions toggle */
-export const GLOBAL_KEY_WATCH_ALL_SESSIONS = 'pixel-agents.watchAllSessions';
+export const GLOBAL_KEY_WATCH_ALL_SESSIONS = 'bento-agents.watchAllSessions';
 
 // ── Display Truncation ──────────────────────────────────────
 export const BASH_COMMAND_DISPLAY_MAX_LENGTH = 30;
 export const TASK_DESCRIPTION_DISPLAY_MAX_LENGTH = 40;
 
 // ── User-Level Layout Persistence ─────────────────────────────
-export const LAYOUT_FILE_DIR = '.pixel-agents';
+export const LAYOUT_FILE_DIR = '.bento-agents';
 export const LAYOUT_FILE_NAME = 'layout.json';
 export const CONFIG_FILE_NAME = 'config.json';
 export const LAYOUT_FILE_POLL_INTERVAL_MS = 2000;
 export const LAYOUT_REVISION_KEY = 'layoutRevision';
 
 // ── Settings Persistence ────────────────────────────────────
-export const GLOBAL_KEY_SOUND_ENABLED = 'pixel-agents.soundEnabled';
-export const GLOBAL_KEY_LAST_SEEN_VERSION = 'pixel-agents.lastSeenVersion';
-export const GLOBAL_KEY_ALWAYS_SHOW_LABELS = 'pixel-agents.alwaysShowLabels';
+export const GLOBAL_KEY_SOUND_ENABLED = 'bento-agents.soundEnabled';
+export const GLOBAL_KEY_LAST_SEEN_VERSION = 'bento-agents.lastSeenVersion';
+export const GLOBAL_KEY_ALWAYS_SHOW_LABELS = 'bento-agents.alwaysShowLabels';
 
 // ── VS Code Identifiers ─────────────────────────────────────
-export const VIEW_ID = 'pixel-agents.panelView';
-export const COMMAND_SHOW_PANEL = 'pixel-agents.showPanel';
-export const COMMAND_EXPORT_DEFAULT_LAYOUT = 'pixel-agents.exportDefaultLayout';
-export const WORKSPACE_KEY_AGENTS = 'pixel-agents.agents';
-export const WORKSPACE_KEY_AGENT_SEATS = 'pixel-agents.agentSeats';
-export const WORKSPACE_KEY_LAYOUT = 'pixel-agents.layout';
+export const VIEW_ID = 'bento-agents.panelView';
+export const COMMAND_SHOW_PANEL = 'bento-agents.showPanel';
+export const COMMAND_EXPORT_DEFAULT_LAYOUT = 'bento-agents.exportDefaultLayout';
+export const WORKSPACE_KEY_AGENTS = 'bento-agents.agents';
+export const WORKSPACE_KEY_AGENT_SEATS = 'bento-agents.agentSeats';
+export const WORKSPACE_KEY_LAYOUT = 'bento-agents.layout';
 export const TERMINAL_NAME_PREFIX = 'Claude Code';

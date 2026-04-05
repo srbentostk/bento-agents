@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { playDoneSound, setSoundEnabled } from '../notificationSound.js';
+import { playDoneSound, playPermissionEscalateSound, playNotification, setSoundEnabled } from '../notificationSound.js';
 import type { OfficeState } from '../office/engine/officeState.js';
+import { IDLE_EXIT_TIMEOUT_SEC, SERVER_IDLE_REMOVE_SEC } from '../constants.js';
+import type { ServerInfo } from '../components/ServerPanel.js';
 import { setFloorSprites } from '../office/floorTiles.js';
 import { buildDynamicCatalog } from '../office/layout/furnitureCatalog.js';
 import { migrateLayoutColors } from '../office/layout/layoutSerializer.js';
@@ -63,6 +65,9 @@ export interface ExtensionMessageState {
   watchAllSessions: boolean;
   setWatchAllSessions: (v: boolean) => void;
   alwaysShowLabels: boolean;
+  servers: ServerInfo[];
+  updateAvailable: string | null;
+  acceptPermission: (id: number) => void;
 }
 
 function saveAgentSeats(os: OfficeState): void {
@@ -98,6 +103,13 @@ export function useExtensionMessages(
   const [extensionVersion, setExtensionVersion] = useState('');
   const [watchAllSessions, setWatchAllSessions] = useState(false);
   const [alwaysShowLabels, setAlwaysShowLabels] = useState(false);
+  const [servers, setServers] = useState<ServerInfo[]>([]);
+  const [updateAvailable, setUpdateAvailable] = useState<string | null>(null);
+
+  // Track last activity time per agent (for idle exit)
+  const agentLastActivityRef = useRef<Record<number, number>>({});
+  // Track last seen time per server (for idle removal)
+  const serverLastSeenRef = useRef<Record<string, number>>({});
 
   // Track whether initial layout has been loaded (ref to avoid re-render)
   const layoutReadyRef = useRef(false);
@@ -147,6 +159,7 @@ export function useExtensionMessages(
       } else if (msg.type === 'agentCreated') {
         const id = msg.id as number;
         const folderName = msg.folderName as string | undefined;
+        agentLastActivityRef.current[id] = Date.now();
         setAgents((prev) => (prev.includes(id) ? prev : [...prev, id]));
         setSelectedAgent(id);
         os.addAgent(id, undefined, undefined, undefined, undefined, folderName);
@@ -205,8 +218,17 @@ export function useExtensionMessages(
           }
           return merged.sort((a, b) => a - b);
         });
+      } else if (msg.type === 'updateAvailable') {
+        setUpdateAvailable(msg.version as string);
       } else if (msg.type === 'agentToolStart') {
         const id = msg.id as number;
+        // Update last activity time
+        agentLastActivityRef.current[id] = Date.now();
+        // Respawn if missing
+        if (!os.characters.has(id)) {
+          os.addAgent(id);
+          saveAgentSeats(os);
+        }
         const toolId = msg.toolId as string;
         const status = msg.status as string;
         setAgentTools((prev) => {
@@ -263,6 +285,11 @@ export function useExtensionMessages(
       } else if (msg.type === 'agentStatus') {
         const id = msg.id as number;
         const status = msg.status as string;
+        agentLastActivityRef.current[id] = Date.now();
+        if ((status === 'active' || status === 'waiting') && !os.characters.has(id)) {
+          os.addAgent(id);
+          saveAgentSeats(os);
+        }
         setAgentStatuses((prev) => {
           if (status === 'active') {
             if (!(id in prev)) return prev;
@@ -276,9 +303,14 @@ export function useExtensionMessages(
         if (status === 'waiting') {
           os.showWaitingBubble(id);
           playDoneSound();
+        } else if (status === 'strike') {
+          os.triggerStrike(id);
+          os.triggerGlobalStrike();
+          playNotification('strike');
         }
       } else if (msg.type === 'agentToolPermission') {
         const id = msg.id as number;
+        agentLastActivityRef.current[id] = Date.now(); // reset idle — agent needs attention
         setAgentTools((prev) => {
           const list = prev[id];
           if (!list) return prev;
@@ -288,6 +320,7 @@ export function useExtensionMessages(
           };
         });
         os.showPermissionBubble(id);
+        playDoneSound();
       } else if (msg.type === 'subagentToolPermission') {
         const id = msg.id as number;
         const parentToolId = msg.parentToolId as string;
@@ -425,12 +458,90 @@ export function useExtensionMessages(
         } catch (err) {
           console.error(`❌ Webview: Error processing furnitureAssetsLoaded:`, err);
         }
+
+        // ── Servidores ─────────────────────────────────────────────
+      } else if (msg.type === 'serverList') {
+        setServers(msg.servers as ServerInfo[]);
+      } else if (msg.type === 'serverStarted') {
+        const srv = msg.server as ServerInfo;
+        setServers((prev) => {
+          const idx = prev.findIndex((s) => s.id === srv.id);
+          if (idx >= 0) {
+            const next = [...prev];
+            next[idx] = srv;
+            return next;
+          }
+          return [...prev, srv];
+        });
+      } else if (msg.type === 'serverStopped') {
+        const id = msg.id as string;
+        const exitCode = msg.exitCode as number | null;
+        setServers((prev) =>
+          prev.map((s) =>
+            s.id === id
+              ? { ...s, status: exitCode === 0 ? 'stopped' : 'error', exitCode }
+              : s,
+          ),
+        );
+      } else if (msg.type === 'serverRemoved') {
+        const id = msg.id as string;
+        setServers((prev) => prev.filter((s) => s.id !== id));
       }
     };
     window.addEventListener('message', handler);
     vscode.postMessage({ type: 'webviewReady' });
     return () => window.removeEventListener('message', handler);
   }, [getOfficeState]);
+
+  // Wire permission escalation sound on officeState
+  useEffect(() => {
+    const os = getOfficeState();
+    os.onPermissionEscalate = (id) => {
+      const ch = os.characters.get(id);
+      if (ch) playPermissionEscalateSound(ch.bubbleType === 'angry');
+    };
+    return () => { os.onPermissionEscalate = null; };
+  }, [getOfficeState]);
+
+  // Idle exit: check every 30s, trigger exit after 5min inactive
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const os = getOfficeState();
+      const now = Date.now();
+      for (const [id, lastActive] of Object.entries(agentLastActivityRef.current)) {
+        const agentId = Number(id);
+        const ch = os.characters.get(agentId);
+        if (!ch || ch.isSubagent || ch.isExiting || ch.matrixEffect) continue;
+        // Skip agents that are currently active or waiting for permission
+        if (ch.isActive || ch.bubbleType === 'permission' || ch.bubbleType === 'angry') { 
+          agentLastActivityRef.current[agentId] = now; 
+          continue; 
+        }
+        const idleSec = (now - lastActive) / 1000;
+        if (idleSec >= IDLE_EXIT_TIMEOUT_SEC) {
+          os.startAgentExit(agentId);
+          delete agentLastActivityRef.current[agentId];
+        }
+      }
+      // Server idle removal
+      setServers((prev) => {
+        const filtered = prev.filter((s) => {
+          if (s.status !== 'running') {
+            const last = serverLastSeenRef.current[s.id] ?? now;
+            return (now - last) / 1000 < SERVER_IDLE_REMOVE_SEC;
+          }
+          serverLastSeenRef.current[s.id] = now;
+          return true;
+        });
+        return filtered.length === prev.length ? prev : filtered;
+      });
+    }, 30_000);
+    return () => clearInterval(interval);
+  }, [getOfficeState]);
+
+  const acceptPermission = (id: number) => {
+    vscode.postMessage({ type: 'agentInput', id, text: 'y\n' });
+  };
 
   return {
     agents,
@@ -449,5 +560,8 @@ export function useExtensionMessages(
     watchAllSessions,
     setWatchAllSessions,
     alwaysShowLabels,
+    servers,
+    updateAvailable,
+    acceptPermission,
   };
 }
