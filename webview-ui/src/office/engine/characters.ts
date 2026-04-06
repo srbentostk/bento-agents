@@ -401,6 +401,30 @@ export function updateCharacter(
       }
       break;
     }
+
+    case CharacterState.SIT_COUCH:
+    case CharacterState.SIT_FLOOR: {
+      // Stay seated for a while, then get up
+      ch.seatTimer += dt;
+      if (ch.seatTimer > randomRange(8, 20)) {
+        ch.state = CharacterState.IDLE;
+        ch.isSittingOnCouch = false;
+        ch.isSittingOnFloor = false;
+        ch.seatTimer = 0;
+        ch.wanderTimer = randomRange(WANDER_PAUSE_MIN_SEC, WANDER_PAUSE_MAX_SEC);
+      }
+      break;
+    }
+
+    case CharacterState.DANCE: {
+      ch.seatTimer += dt;
+      if (ch.seatTimer > randomRange(4, 8)) {
+        ch.state = CharacterState.IDLE;
+        ch.seatTimer = 0;
+        ch.wanderTimer = randomRange(WANDER_PAUSE_MIN_SEC, WANDER_PAUSE_MAX_SEC);
+      }
+      break;
+    }
   }
 }
 
