@@ -177,7 +177,9 @@ export interface Character {
   /** Assigned seat uid, or null if no seat */
   seatId: string | null;
   /** Active speech bubble type, or null if none showing */
-  bubbleType: 'permission' | 'waiting' | 'angry' | 'strike' | null;
+  bubbleType: 'permission' | 'waiting' | 'angry' | 'strike' | 'sign' | null;
+  /** Text shown on the sign when bubbleType === 'sign' */
+  signText: string | null;
   /** Countdown timer for bubble (waiting: 2→0, permission: unused) */
   bubbleTimer: number;
   /** Counts up while bubbleType === 'permission' — used for escalation */

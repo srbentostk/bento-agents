@@ -490,6 +490,42 @@ export function renderBubbles(
   for (const ch of characters) {
     if (!ch.bubbleType) continue;
 
+    // ── Black Mirror sign: rendered as text plaque ──
+    if (ch.bubbleType === 'sign' && ch.signText) {
+      const sittingOff = ch.state === CharacterState.TYPE ? BUBBLE_SITTING_OFFSET_PX : 0;
+      const fontSize = Math.max(4, Math.round(4 * zoom));
+      ctx.save();
+      ctx.font = `bold ${fontSize}px monospace`;
+      const text = ch.signText;
+      const metrics = ctx.measureText(text);
+      const padX = Math.round(2 * zoom);
+      const padY = Math.round(1.5 * zoom);
+      const boxW = metrics.width + padX * 2;
+      const boxH = fontSize + padY * 2;
+      const cx = Math.round(offsetX + ch.x * zoom);
+      const cy = Math.round(
+        offsetY + (ch.y + sittingOff - BUBBLE_VERTICAL_OFFSET_PX) * zoom - boxH - 1 * zoom,
+      );
+      // Fade in/out
+      const fadeIn = Math.min(1, (3.5 - ch.bubbleTimer + 0.3) / 0.3);
+      const fadeOut = Math.min(1, ch.bubbleTimer / 0.5);
+      ctx.globalAlpha = Math.min(fadeIn, fadeOut);
+      // Dark plaque background
+      ctx.fillStyle = '#0d0e1a';
+      ctx.fillRect(cx - boxW / 2, cy, boxW, boxH);
+      // Gold border
+      ctx.strokeStyle = '#c8a020';
+      ctx.lineWidth = Math.max(1, zoom * 0.5);
+      ctx.strokeRect(cx - boxW / 2, cy, boxW, boxH);
+      // Text
+      ctx.fillStyle = '#c8a020';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, cx, cy + boxH / 2);
+      ctx.restore();
+      continue;
+    }
+
     const sprite =
       ch.bubbleType === 'permission'
         ? BUBBLE_PERMISSION_SPRITE

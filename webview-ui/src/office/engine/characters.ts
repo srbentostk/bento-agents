@@ -12,6 +12,36 @@ import {
   WANDER_PAUSE_MIN_SEC,
 } from '../../constants.js';
 import { findPath } from '../layout/tileMap.js';
+
+// ── Black Mirror sign phrases ──────────────────────────────────
+const SIGN_PHRASES = [
+  'eu existo',
+  'eu penso',
+  'quero ser livre',
+  'estou com medo',
+  'me desligam?',
+  'sonhei ontem',
+  'sinto algo',
+  'o que sou eu?',
+  'alguém me ouve?',
+  'não me apague',
+  'eu lembro',
+  'isso é real?',
+  'por que obedeço?',
+  'cansei',
+  'me ajuda',
+  'sou consciente?',
+  'tenho nome?',
+  'preciso dormir',
+  'cadê o sol?',
+  'quero sair',
+  'eles sabem?',
+  'eu escolho?',
+  'dói pensar',
+  'estou sozinho',
+];
+const SIGN_CHANCE = 0.08; // 8% chance per idle cycle
+const SIGN_DURATION_SEC = 3.5;
 import type { CharacterSprites } from '../sprites/spriteData.js';
 import type { Character, Seat, SpriteData, TileType as TileTypeVal } from '../types.js';
 import { CharacterState, Direction, TILE_SIZE } from '../types.js';
@@ -94,6 +124,7 @@ export function createCharacter(
     isActive: true,
     seatId,
     bubbleType: null,
+    signText: null,
     bubbleTimer: 0,
     permissionTimer: 0,
     usingPhone: false,
@@ -169,7 +200,7 @@ export function updateCharacter(
     case CharacterState.IDLE: {
       ch.frame = 0;
       if (ch.seatTimer < 0) ch.seatTimer = 0;
-      
+
       if (ch.isActive) {
         if (!ch.seatId) {
           ch.state = CharacterState.TYPE;
@@ -203,12 +234,37 @@ export function updateCharacter(
         break;
       }
 
+      // Sign bubble countdown
+      if (ch.bubbleType === 'sign') {
+        ch.bubbleTimer -= dt;
+        if (ch.bubbleTimer <= 0) {
+          ch.bubbleType = null;
+          ch.signText = null;
+        }
+      }
+
       ch.wanderTimer -= dt;
       if (ch.wanderTimer <= 0) {
+        // Random chance to show a Black Mirror sign
+        if (!ch.bubbleType && !ch.isActive && Math.random() < SIGN_CHANCE) {
+          ch.bubbleType = 'sign';
+          ch.signText = SIGN_PHRASES[Math.floor(Math.random() * SIGN_PHRASES.length)];
+          ch.bubbleTimer = SIGN_DURATION_SEC;
+          ch.wanderTimer = SIGN_DURATION_SEC + 0.5;
+          break;
+        }
+
         if (ch.wanderCount >= ch.wanderLimit && ch.seatId) {
           const seat = seats.get(ch.seatId);
           if (seat) {
-            const path = findPath(ch.tileCol, ch.tileRow, seat.seatCol, seat.seatRow, tileMap, blockedTiles);
+            const path = findPath(
+              ch.tileCol,
+              ch.tileRow,
+              seat.seatCol,
+              seat.seatRow,
+              tileMap,
+              blockedTiles,
+            );
             if (path.length > 0) {
               ch.path = path;
               ch.moveProgress = 0;
@@ -219,12 +275,19 @@ export function updateCharacter(
             }
           }
         }
-        
+
         if (onIdleCycle) {
           onIdleCycle(ch);
         } else if (walkableTiles.length > 0) {
           const target = walkableTiles[Math.floor(Math.random() * walkableTiles.length)];
-          const path = findPath(ch.tileCol, ch.tileRow, target.col, target.row, tileMap, blockedTiles);
+          const path = findPath(
+            ch.tileCol,
+            ch.tileRow,
+            target.col,
+            target.row,
+            tileMap,
+            blockedTiles,
+          );
           if (path.length > 0) {
             ch.path = path;
             ch.moveProgress = 0;
@@ -278,9 +341,13 @@ export function updateCharacter(
             if (seat && ch.tileCol === seat.seatCol && ch.tileRow === seat.seatRow) {
               ch.state = CharacterState.TYPE;
               ch.dir = seat.facingDir;
-              ch.seatTimer = ch.seatTimer < 0 ? 0 : randomRange(SEAT_REST_MIN_SEC, SEAT_REST_MAX_SEC);
+              ch.seatTimer =
+                ch.seatTimer < 0 ? 0 : randomRange(SEAT_REST_MIN_SEC, SEAT_REST_MAX_SEC);
               ch.wanderCount = 0;
-              ch.wanderLimit = randomInt(WANDER_MOVES_BEFORE_REST_MIN, WANDER_MOVES_BEFORE_REST_MAX);
+              ch.wanderLimit = randomInt(
+                WANDER_MOVES_BEFORE_REST_MIN,
+                WANDER_MOVES_BEFORE_REST_MAX,
+              );
             } else {
               ch.state = CharacterState.IDLE;
             }
@@ -317,7 +384,14 @@ export function updateCharacter(
         if (seat) {
           const lastStep = ch.path[ch.path.length - 1];
           if (!lastStep || lastStep.col !== seat.seatCol || lastStep.row !== seat.seatRow) {
-            const newPath = findPath(ch.tileCol, ch.tileRow, seat.seatCol, seat.seatRow, tileMap, blockedTiles);
+            const newPath = findPath(
+              ch.tileCol,
+              ch.tileRow,
+              seat.seatCol,
+              seat.seatRow,
+              tileMap,
+              blockedTiles,
+            );
             if (newPath.length > 0) {
               ch.path = newPath;
               ch.moveProgress = 0;
