@@ -143,24 +143,35 @@ export function getCharacterSprites(paletteIndex: number, hueShift = 0): Charact
     const rt = char.right;
     const flip = flipSpriteHorizontal;
 
+    // Fallback: reuse idle frame (0) if extended frames (7,8,9) don't exist
+    const d7 = d[7] ?? d[0];
+    const d8 = d[8] ?? d[0];
+    const d9 = d[9] ?? d[1];
+    const u7 = u[7] ?? u[0];
+    const u8 = u[8] ?? u[0];
+    const u9 = u[9] ?? u[1];
+    const rt7 = rt[7] ?? rt[0];
+    const rt8 = rt[8] ?? rt[0];
+    const rt9 = rt[9] ?? rt[1];
+
     sprites = {
       sitCouch: {
-        [Dir.DOWN]: d[7],
-        [Dir.UP]: u[7],
-        [Dir.RIGHT]: rt[7],
-        [Dir.LEFT]: flip(rt[7]),
+        [Dir.DOWN]: d7,
+        [Dir.UP]: u7,
+        [Dir.RIGHT]: rt7,
+        [Dir.LEFT]: flip(rt7),
       },
       sitFloor: {
-        [Dir.DOWN]: d[8],
-        [Dir.UP]: u[8],
-        [Dir.RIGHT]: rt[8],
-        [Dir.LEFT]: flip(rt[8]),
+        [Dir.DOWN]: d8,
+        [Dir.UP]: u8,
+        [Dir.RIGHT]: rt8,
+        [Dir.LEFT]: flip(rt8),
       },
       dance: {
-        [Dir.DOWN]: d[9],
-        [Dir.UP]: u[9],
-        [Dir.RIGHT]: rt[9],
-        [Dir.LEFT]: flip(rt[9]),
+        [Dir.DOWN]: d9,
+        [Dir.UP]: u9,
+        [Dir.RIGHT]: rt9,
+        [Dir.LEFT]: flip(rt9),
       },
       walk: {
         [Dir.DOWN]: [d[0], d[1], d[2], d[1]],
@@ -182,7 +193,7 @@ export function getCharacterSprites(paletteIndex: number, hueShift = 0): Charact
       },
     };
   } else {
-    const e = emptySprite(24, 32);
+    const e = emptySprite(16, 32);
     const walkSet: [SpriteData, SpriteData, SpriteData, SpriteData] = [e, e, e, e];
     const pairSet: [SpriteData, SpriteData] = [e, e];
     sprites = {

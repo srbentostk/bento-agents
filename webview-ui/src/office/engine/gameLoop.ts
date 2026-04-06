@@ -15,14 +15,20 @@ export function startGameLoop(canvas: HTMLCanvasElement, callbacks: GameLoopCall
 
   const frame = (time: number) => {
     if (stopped) return;
-    const dt = lastTime === 0 ? 0 : (time - lastTime) / 1000;
-    
+
+    // First frame: initialize lastTime and render immediately
+    if (lastTime === 0) {
+      lastTime = time;
+    }
+
+    const dt = (time - lastTime) / 1000;
+
     // 30 FPS Cap: ~33.3ms per frame
     if (dt < 0.033) {
       rafId = requestAnimationFrame(frame);
       return;
     }
-    
+
     lastTime = time;
     callbacks.update(Math.min(dt, MAX_DELTA_TIME_SEC));
 

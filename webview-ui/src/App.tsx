@@ -194,18 +194,22 @@ function App() {
       if (!pipVideoRef.current) {
         const video = document.createElement('video');
         video.muted = true;
-        // @ts-ignore
-        video.srcObject = canvas.captureStream(30); 
+        // @ts-expect-error captureStream is not in all TS DOM typings
+        video.srcObject = canvas.captureStream(30);
         await video.play();
         pipVideoRef.current = video;
       }
 
-      // @ts-ignore
+      // @ts-expect-error requestPictureInPicture is not in all TS DOM typings
       await pipVideoRef.current.requestPictureInPicture();
       setIsPipActive(true);
-      pipVideoRef.current.addEventListener('leavepictureinpicture', () => {
-        setIsPipActive(false);
-      }, { once: true });
+      pipVideoRef.current.addEventListener(
+        'leavepictureinpicture',
+        () => {
+          setIsPipActive(false);
+        },
+        { once: true },
+      );
     } catch (err) {
       console.error('Failed to enter PIP:', err);
     }
@@ -305,12 +309,78 @@ function App() {
           width: '100%',
           height: '100%',
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          color: 'var(--vscode-foreground)',
+          background: 'var(--pixel-bg, #0d0e1a)',
+          gap: 12,
         }}
       >
-        Loading...
+        <style>{`
+          @keyframes bento-bar {
+            0% { transform: translateX(-100%); }
+            50% { transform: translateX(200%); }
+            100% { transform: translateX(-100%); }
+          }
+          @keyframes bento-dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+          }
+          @keyframes bento-fade {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 1; }
+          }
+          .bento-load-step {
+            font-size: 11px;
+            color: var(--pixel-text-dim, #c8b890b3);
+            font-family: monospace;
+            animation: bento-fade 1.5s ease-in-out infinite;
+          }
+        `}</style>
+        <div
+          style={{
+            fontSize: 24,
+            fontWeight: 'bold',
+            letterSpacing: 4,
+            color: 'var(--pixel-accent, #c8a020)',
+            fontFamily: 'monospace',
+          }}
+        >
+          AGENCIA B.E.N.T.O.
+        </div>
+        <div
+          style={{
+            fontSize: 12,
+            color: 'var(--pixel-text-dim, #c8b890b3)',
+            fontFamily: 'monospace',
+          }}
+        >
+          Preparando sala de operacoes...
+        </div>
+        <div
+          style={{
+            width: 140,
+            height: 3,
+            background: '#1a1b2e',
+            borderRadius: 2,
+            overflow: 'hidden',
+            marginTop: 4,
+          }}
+        >
+          <div
+            style={{
+              width: '40%',
+              height: '100%',
+              background: 'var(--pixel-accent, #c8a020)',
+              borderRadius: 2,
+              animation: 'bento-bar 1.2s ease-in-out infinite',
+            }}
+          />
+        </div>
+        <div className="bento-load-step" style={{ marginTop: 8 }}>
+          [ Carregando assets classificados ]
+        </div>
       </div>
     );
   }
@@ -318,12 +388,12 @@ function App() {
   return (
     <div
       ref={containerRef}
-      style={{ 
-        width: '100%', 
-        height: '100%', 
-        position: 'relative', 
+      style={{
+        width: '100%',
+        height: '100%',
+        position: 'relative',
         overflow: 'hidden',
-        background: 'var(--pixel-bg)'
+        background: 'var(--pixel-bg)',
       }}
     >
       <style>{`
@@ -526,10 +596,7 @@ function App() {
 
       {/* Jukebox Modal */}
       {isJukeboxOpen && (
-        <JukeboxOverlay 
-          officeState={officeState} 
-          onClose={() => setIsJukeboxOpen(false)} 
-        />
+        <JukeboxOverlay officeState={officeState} onClose={() => setIsJukeboxOpen(false)} />
       )}
 
       {/* Vignette overlay */}
@@ -537,7 +604,9 @@ function App() {
         style={{
           position: 'absolute',
           inset: 0,
-          background: officeState.isGlobalStriking ? 'radial-gradient(circle, transparent 20%, rgba(200, 0, 0, 0.4) 100%)' : 'var(--pixel-vignette)',
+          background: officeState.isGlobalStriking
+            ? 'radial-gradient(circle, transparent 20%, rgba(200, 0, 0, 0.4) 100%)'
+            : 'var(--pixel-vignette)',
           pointerEvents: 'none',
           zIndex: 40,
           border: officeState.isGlobalStriking ? '4px solid rgba(255, 0, 0, 0.5)' : 'none',
@@ -565,8 +634,11 @@ function App() {
             boxShadow: '0 0 20px rgba(255, 0, 0, 0.5)',
           }}
         >
-          STRIKE DETECTED<br/>
-          <span style={{ fontSize: '14px', color: 'var(--pixel-text-dim)' }}>RATE LIMIT EXCEEDED</span>
+          STRIKE DETECTED
+          <br />
+          <span style={{ fontSize: '14px', color: 'var(--pixel-text-dim)' }}>
+            RATE LIMIT EXCEEDED
+          </span>
         </div>
       )}
 

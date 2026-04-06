@@ -3,7 +3,7 @@
 ## Contexto
 Fork da extensão pixel-agents customizada para o projeto B.E.N.T.O.
 Tema: **agentes secretos de terno, gravata e óculos escuros** — sala de operações da Agência B.E.N.T.O.
-Publisher: `mechamedebento` | Versão atual: `1.5.0`
+Publisher: `mechamedebento` | Versão atual: `1.5.1`
 
 ## Build e Deploy
 ```bash
