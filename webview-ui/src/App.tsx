@@ -194,13 +194,11 @@ function App() {
       if (!pipVideoRef.current) {
         const video = document.createElement('video');
         video.muted = true;
-        // @ts-expect-error captureStream is not in all TS DOM typings
         video.srcObject = canvas.captureStream(30);
         await video.play();
         pipVideoRef.current = video;
       }
 
-      // @ts-expect-error requestPictureInPicture is not in all TS DOM typings
       await pipVideoRef.current.requestPictureInPicture();
       setIsPipActive(true);
       pipVideoRef.current.addEventListener(
