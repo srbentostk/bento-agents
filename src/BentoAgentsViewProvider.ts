@@ -530,14 +530,9 @@ export class BentoAgentsViewProvider implements vscode.WebviewViewProvider {
         // ── Server management ─────────────────────────────────────
       } else if (message.type === 'startServer') {
         const id = crypto.randomUUID();
-        const cwd = (message.cwd as string | undefined) ||
-          vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-        this.serverManager.start(
-          id,
-          message.name as string,
-          message.command as string,
-          cwd,
-        );
+        const cwd =
+          (message.cwd as string | undefined) || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        this.serverManager.start(id, message.name as string, message.command as string, cwd);
       } else if (message.type === 'stopServer') {
         this.serverManager.stop(message.id as string);
       } else if (message.type === 'removeServer') {
@@ -554,6 +549,8 @@ export class BentoAgentsViewProvider implements vscode.WebviewViewProvider {
         if (uris && uris.length > 0) {
           this.webview?.postMessage({ type: 'serverCwdSelected', path: uris[0].fsPath });
         }
+      } else if (message.type === 'openExternal') {
+        void vscode.env.openExternal(vscode.Uri.parse(message.url as string));
       } else if (message.type === 'checkForUpdates') {
         void this._checkForUpdates();
       } else if (message.type === 'installUpdate') {
@@ -681,18 +678,24 @@ export class BentoAgentsViewProvider implements vscode.WebviewViewProvider {
       const current = `v${pkg.version}`;
       if (latestTag !== current) {
         this.webview?.postMessage({ type: 'updateAvailable', version: latestTag });
-        vscode.window.showInformationMessage(
-          `Bento Agents: Nova versão ${latestTag} disponível! (atual: ${current})`,
-          'Atualizar',
-        ).then((choice) => {
-          if (choice === 'Atualizar') void this._installUpdate();
-        });
+        vscode.window
+          .showInformationMessage(
+            `Bento Agents: Nova versão ${latestTag} disponível! (atual: ${current})`,
+            'Atualizar',
+          )
+          .then((choice) => {
+            if (choice === 'Atualizar') void this._installUpdate();
+          });
       } else {
-        vscode.window.showInformationMessage(`Bento Agents: você está na versão mais recente (${current}).`);
+        vscode.window.showInformationMessage(
+          `Bento Agents: você está na versão mais recente (${current}).`,
+        );
       }
     } catch (err) {
       console.error('[Bento Agents] checkForUpdates error:', err);
-      vscode.window.showWarningMessage('Bento Agents: não foi possível verificar atualizações (sem acesso ao repositório git remoto).');
+      vscode.window.showWarningMessage(
+        'Bento Agents: não foi possível verificar atualizações (sem acesso ao repositório git remoto).',
+      );
     }
   }
 

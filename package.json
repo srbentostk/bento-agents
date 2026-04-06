@@ -2,7 +2,7 @@
   "name": "bento-agents",
   "displayName": "Bento Agents",
   "description": "Pixel art office where your Claude Code agents come to life as animated characters — Agência B.E.N.T.O.",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "publisher": "mechamedebento",
   "repository": {
     "type": "git",
