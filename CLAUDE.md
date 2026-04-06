@@ -93,24 +93,29 @@ const png = PNG.sync.read(fs.readFileSync('char_N.png'));
 // Gravata: pintar cols 7-8, linhas rel. 6-11 com {r:100,g:8,b:12}
 ```
 
-## Workflow de Edição Futuro (Recomendado)
+## Workflow de Edição (OBRIGATÓRIO)
 1. Editar fonte em `src/` ou `webview-ui/src/`
 2. Bump de versão em `package.json` E neste `CLAUDE.md`
 3. `npm run package` → compila `dist/`
 4. `npx vsce package --out bento-agents-X.Y.Z.vsix` → gera VSIX novo na raiz
-5. Mover o VSIX anterior da raiz para `releases/`
-6. Commit + push — o VSIX mais recente fica rastreado no git para distribuição
-7. Instalar no VSCode via "Install from VSIX"
+5. Copiar o novo VSIX para `releases/latest/` (substituir o anterior)
+6. Mover o VSIX anterior de `releases/latest/` para `releases/archive/`
+7. Commit + push
+8. Instalar no VSCode via "Install from VSIX"
 
 > **Preferir sempre o código fonte** sobre editar bundles minificados em `dist/`.
 
-## Regra de Versionamento de VSIX (OBRIGATÓRIO)
-- **Sempre** que gerar um novo VSIX:
-  1. O VSIX antigo que estiver na raiz deve ser movido para `releases/`
-  2. O novo VSIX (`bento-agents-X.Y.Z.vsix`) fica na raiz
-  3. Nunca deixar dois VSIXs do bento-agents na raiz ao mesmo tempo
-  4. VSIXs de outros projetos (ex: `pixel-agents-*.vsix`) ficam em `releases/`
-- O `.gitignore` rastreia `bento-agents-*.vsix` na raiz mas ignora `releases/*.vsix`
+## Regra de Organização de VSIX (OBRIGATÓRIO — SEMPRE SEGUIR)
+- **Estrutura de diretórios:**
+  - `releases/latest/` — contém **apenas** o VSIX mais recente (1 arquivo)
+  - `releases/archive/` — contém todos os VSIXs anteriores (histórico)
+  - Raiz do projeto — pode ter o VSIX atual para conveniência de instalação
+- **Ao gerar um novo VSIX:**
+  1. Mover o VSIX que estiver em `releases/latest/` para `releases/archive/`
+  2. Copiar o novo VSIX para `releases/latest/`
+  3. Nunca deixar mais de 1 VSIX em `releases/latest/`
+  4. VSIXs de outros projetos (ex: `pixel-agents-*.vsix`) ficam em `releases/archive/`
+- O `.gitignore` rastreia `bento-agents-*.vsix` na raiz e `releases/latest/` mas ignora `releases/archive/*.vsix`
 
 ## Sala de Servidores no Layout
 - Colunas 22-30 do mapa são reservadas para a **Sala de Servidores** (FLOOR_9 = azul-petróleo escuro)

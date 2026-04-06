@@ -21,13 +21,13 @@ Thumbs.db
 test-results/
 playwright-report/
 
-# Build artifacts - ignorar tudo EXCETO o VSIX atual do bento-agents na raiz
+# Build artifacts
 *.map
-releases/*.vsix
-pixel-agents*.vsix
 
-# Manter rastreado: bento-agents-*.vsix na raiz (para distribuição via git)
-# Regra: apenas o VSIX mais recente fica na raiz; versões antigas vão para releases/
+# VSIX — só rastrear releases/latest/, ignorar archive e raiz
+*.vsix
+!releases/latest/*.vsix
+releases/archive/*.vsix
 
 # Environment files
 .env*
